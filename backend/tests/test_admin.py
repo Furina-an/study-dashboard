@@ -135,3 +135,95 @@ def test_update_and_delete_invite(client, admin_headers):
     assert updated["remark"] == "内部使用"
     assert client.delete(f"/api/admin/invites/{invite_id}", headers=admin_headers).status_code == 204
     assert client.patch(f"/api/admin/invites/{invite_id}", json={}, headers=admin_headers).status_code == 404
+
+
+def test_disable_user_blocks_login_and_old_token(client, admin_headers):
+    reg = _register(client, "carol")
+    carol_headers = {"Authorization": f"Bearer {reg.json()['access_token']}"}
+    # 禁用前正常访问
+    assert client.get("/api/tasks", headers=carol_headers).status_code == 200
+    users = client.get("/api/admin/users", headers=admin_headers).json()
+    carol = next(u for u in users if u["username"] == "carol")
+    assert carol["is_active"] is True
+    updated = client.patch(
+        f"/api/admin/users/{carol['id']}",
+        json={"is_active": False},
+        headers=admin_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["is_active"] is False
+    # 登录被拒
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "carol", "password": "secret123"}
+        ).status_code
+        == 401
+    )
+    # 旧 token 立即失效
+    assert client.get("/api/tasks", headers=carol_headers).status_code == 401
+
+
+def test_enable_user_restores_access(client, admin_headers):
+    _register(client, "carol")
+    users = client.get("/api/admin/users", headers=admin_headers).json()
+    carol = next(u for u in users if u["username"] == "carol")
+    client.patch(
+        f"/api/admin/users/{carol['id']}",
+        json={"is_active": False},
+        headers=admin_headers,
+    )
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "carol", "password": "secret123"}
+        ).status_code
+        == 401
+    )
+    client.patch(
+        f"/api/admin/users/{carol['id']}",
+        json={"is_active": True},
+        headers=admin_headers,
+    )
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "carol", "password": "secret123"}
+        ).status_code
+        == 200
+    )
+
+
+def test_admin_cannot_disable_self(client, admin_headers):
+    users = client.get("/api/admin/users", headers=admin_headers).json()
+    admin = next(u for u in users if u["username"] == "admin")
+    response = client.patch(
+        f"/api/admin/users/{admin['id']}",
+        json={"is_active": False},
+        headers=admin_headers,
+    )
+    assert response.status_code == 400
+
+
+def test_admin_cannot_disable_other_admin(client, admin_headers, monkeypatch):
+    monkeypatch.setenv("ADMIN_USERNAMES", "admin,carol")
+    _register(client, "carol")
+    users = client.get("/api/admin/users", headers=admin_headers).json()
+    carol = next(u for u in users if u["username"] == "carol")
+    response = client.patch(
+        f"/api/admin/users/{carol['id']}",
+        json={"is_active": False},
+        headers=admin_headers,
+    )
+    assert response.status_code == 400
+
+
+def test_non_admin_cannot_update_user(client, auth_headers):
+    response = client.patch(
+        "/api/admin/users/1", json={"is_active": False}, headers=auth_headers
+    )
+    assert response.status_code == 403
+
+
+def test_update_user_not_found(client, admin_headers):
+    response = client.patch(
+        "/api/admin/users/99999", json={"is_active": False}, headers=admin_headers
+    )
+    assert response.status_code == 404

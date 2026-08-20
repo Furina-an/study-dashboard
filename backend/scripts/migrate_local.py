@@ -36,6 +36,14 @@ def main() -> None:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER"))
             print(f"已为 {table} 添加 user_id 列")
 
+    user_columns = {col["name"] for col in inspector.get_columns("users")}
+    if "is_active" not in user_columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1")
+            )
+        print("已为 users 添加 is_active 列")
+
     task_columns = {col["name"] for col in inspector.get_columns("tasks")}
     if "plan_id" not in task_columns:
         with engine.begin() as conn:

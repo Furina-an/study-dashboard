@@ -386,12 +386,17 @@ class InviteOut(BaseModel):
         return max(0, self.max_uses - self.used_count)
 
 
+class AdminUserUpdate(BaseModel):
+    is_active: bool
+
+
 class AdminUserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     username: str
     created_at: datetime
+    is_active: bool = True
     is_admin: bool = False
 
 

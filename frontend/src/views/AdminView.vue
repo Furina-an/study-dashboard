@@ -1,157 +1,282 @@
 <template>
-  <div class="page">
-    <div class="page-head">
-      <h1>🛡️ 管理后台</h1>
-      <p class="muted">
-        通过邀请码控制注册人数：生成、限次、限时、启停，并查看注册用户。
-      </p>
-    </div>
-
-    <p v-if="error" class="banner error">{{ error }}</p>
-    <p v-if="notice" class="banner info">{{ notice }}</p>
-
-    <!-- 概览 -->
-    <section class="stat-cards">
-      <div class="stat-card accent">
-        <div class="stat-value">{{ stats.total_users }}</div>
-        <div class="stat-label">注册用户</div>
-        <div class="stat-sub">当前使用人数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.active_invites }}</div>
-        <div class="stat-label">有效邀请码</div>
-        <div class="stat-sub">启用中</div>
-      </div>
-      <div class="stat-card success">
-        <div class="stat-value">{{ stats.unused_invites }}</div>
-        <div class="stat-label">未使用邀请码</div>
-        <div class="stat-sub">还可发放</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.total_invites }}</div>
-        <div class="stat-label">累计邀请码</div>
-        <div class="stat-sub">历史全部</div>
-      </div>
-    </section>
-
-    <!-- 生成邀请码 -->
-    <section class="panel">
-      <h2>🎟️ 生成邀请码</h2>
-      <div class="form-grid">
-        <label class="field">
-          <span>生成数量</span>
-          <input v-model.number="form.count" type="number" min="1" max="50" class="input" />
-        </label>
-        <label class="field">
-          <span>每个码可用次数</span>
-          <input v-model.number="form.maxUses" type="number" min="1" max="1000" class="input" />
-        </label>
-        <label class="field">
-          <span>有效天数（留空=永久）</span>
-          <input v-model.number="form.expiresDays" type="number" min="1" max="3650" class="input" placeholder="例如 30" />
-        </label>
-        <label class="field">
-          <span>备注（可选）</span>
-          <input v-model="form.remark" class="input" maxlength="200" placeholder="如：送给同学 / 内测第二批" />
-        </label>
-      </div>
-      <button class="btn primary" :disabled="generating" @click="generate">
-        {{ generating ? '生成中…' : '生成邀请码' }}
+  <div class="admin-layout">
+    <!-- 左侧导航 -->
+    <aside class="admin-side">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="side-btn"
+        :class="{ active: activeTab === tab.key }"
+        @click="switchTab(tab.key)"
+      >
+        <span class="side-icon">{{ tab.icon }}</span>
+        <span>{{ tab.label }}</span>
       </button>
+    </aside>
 
-      <div v-if="newCodes.length" class="new-codes">
+    <!-- 右侧内容 -->
+    <div class="admin-main">
+      <div class="page-head">
+        <h1>🛡️ 运营后台</h1>
+        <p class="muted">
+          邀请码控制注册人数、用户状态管理、用户上传文件审核与整合。
+        </p>
+      </div>
+
+      <p v-if="error" class="banner error">{{ error }}</p>
+      <p v-if="notice" class="banner info">{{ notice }}</p>
+
+      <!-- 概览 -->
+      <section v-if="activeTab === 'overview'" class="stat-cards">
+        <div class="stat-card accent">
+          <div class="stat-value">{{ stats.total_users }}</div>
+          <div class="stat-label">注册用户</div>
+          <div class="stat-sub">当前使用人数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.active_invites }}</div>
+          <div class="stat-label">有效邀请码</div>
+          <div class="stat-sub">启用中</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-value">{{ stats.unused_invites }}</div>
+          <div class="stat-label">未使用邀请码</div>
+          <div class="stat-sub">还可发放</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ stats.total_invites }}</div>
+          <div class="stat-label">累计邀请码</div>
+          <div class="stat-sub">历史全部</div>
+        </div>
+      </section>
+
+      <!-- 邀请码管理 -->
+      <template v-else-if="activeTab === 'invites'">
+        <section class="panel">
+          <h2>🎟️ 生成邀请码</h2>
+          <div class="form-grid">
+            <label class="field">
+              <span>生成数量</span>
+              <input v-model.number="form.count" type="number" min="1" max="50" class="input" />
+            </label>
+            <label class="field">
+              <span>每个码可用次数</span>
+              <input v-model.number="form.maxUses" type="number" min="1" max="1000" class="input" />
+            </label>
+            <label class="field">
+              <span>有效天数（留空=永久）</span>
+              <input v-model.number="form.expiresDays" type="number" min="1" max="3650" class="input" placeholder="例如 30" />
+            </label>
+            <label class="field">
+              <span>备注（可选）</span>
+              <input v-model="form.remark" class="input" maxlength="200" placeholder="如：送给同学 / 内测第二批" />
+            </label>
+          </div>
+          <button class="btn primary" :disabled="generating" @click="generate">
+            {{ generating ? '生成中…' : '生成邀请码' }}
+          </button>
+
+          <div v-if="newCodes.length" class="new-codes">
+            <div class="panel-head">
+              <h3>✅ 新生成的 {{ newCodes.length }} 个邀请码</h3>
+              <button class="btn small ghost" @click="copyCodes">复制全部</button>
+            </div>
+            <div class="code-grid">
+              <code
+                v-for="item in newCodes"
+                :key="item.id"
+                class="code-chip"
+                :title="'点击复制：' + item.code"
+                @click="copyOne(item.code)"
+              >{{ item.code }}</code>
+            </div>
+            <p class="muted small">点击单个邀请码即可复制；请妥善保管，仅发给想邀请的人。</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>📋 邀请码列表（{{ invites.length }}）</h2>
+            <button class="btn small ghost" @click="loadInvites">刷新</button>
+          </div>
+          <p v-if="invitesLoading" class="muted">加载中…</p>
+          <p v-else-if="!invites.length" class="muted">还没有生成过邀请码。</p>
+          <div v-else class="file-table">
+            <div class="file-row file-head">
+              <span>邀请码</span>
+              <span>使用</span>
+              <span>有效期</span>
+              <span>状态</span>
+              <span>备注</span>
+              <span>创建时间</span>
+              <span>操作</span>
+            </div>
+            <div v-for="item in invites" :key="item.id" class="file-row">
+              <span>
+                <code
+                  class="code-chip"
+                  :class="{ dim: !item.active }"
+                  :title="'点击复制'"
+                  @click="copyOne(item.code)"
+                >{{ item.code }}</code>
+              </span>
+              <span>{{ item.used_count }} / {{ item.max_uses }}</span>
+              <span class="muted">{{ item.expires_at ? formatTime(item.expires_at) : '永久' }}</span>
+              <span>
+                <span class="tag" :class="item.active ? 'tag-ok' : ''">{{ item.active ? '启用' : '停用' }}</span>
+                <span v-if="item.used_count >= item.max_uses" class="tag">已用完</span>
+              </span>
+              <span class="muted">{{ item.remark || '—' }}</span>
+              <span class="muted">{{ formatTime(item.created_at) }}</span>
+              <span class="file-actions">
+                <button class="btn small" @click="toggleInvite(item)">
+                  {{ item.active ? '停用' : '启用' }}
+                </button>
+                <button class="btn small danger" @click="removeInvite(item)">删除</button>
+              </span>
+            </div>
+          </div>
+        </section>
+      </template>
+
+      <!-- 用户管理 -->
+      <section v-else-if="activeTab === 'users'" class="panel">
         <div class="panel-head">
-          <h3>✅ 新生成的 {{ newCodes.length }} 个邀请码</h3>
-          <button class="btn small ghost" @click="copyCodes">复制全部</button>
+          <h2>👥 注册用户（{{ users.length }}）</h2>
+          <button class="btn small ghost" @click="loadUsers">刷新</button>
         </div>
-        <div class="code-grid">
-          <code v-for="item in newCodes" :key="item.id" class="code-chip" @click="copyOne(item.code)" :title="'点击复制：' + item.code">
-            {{ item.code }}
-          </code>
+        <p v-if="usersLoading" class="muted">加载中…</p>
+        <p v-else-if="!users.length" class="muted">暂无用户。</p>
+        <div v-else class="file-table">
+          <div class="file-row file-head">
+            <span>用户名</span>
+            <span>角色</span>
+            <span>状态</span>
+            <span>注册时间</span>
+            <span>操作</span>
+          </div>
+          <div v-for="user in users" :key="user.id" class="file-row">
+            <span class="file-name">{{ user.username }}</span>
+            <span>
+              <span class="tag" :class="user.is_admin ? 'tag-ok' : ''">{{ user.is_admin ? '管理员' : '普通用户' }}</span>
+            </span>
+            <span>
+              <span class="tag" :class="user.is_active ? 'tag-ok' : 'tag-overdue'">{{ user.is_active ? '正常' : '已禁用' }}</span>
+            </span>
+            <span class="muted">{{ formatTime(user.created_at) }}</span>
+            <span class="file-actions">
+              <button
+                v-if="user.id !== authUser?.id && !user.is_admin"
+                class="btn small"
+                :class="user.is_active ? 'danger' : ''"
+                @click="toggleUser(user)"
+              >
+                {{ user.is_active ? '禁用' : '启用' }}
+              </button>
+              <span v-else class="muted small">—</span>
+            </span>
+          </div>
         </div>
-        <p class="muted small">点击单个邀请码即可复制；请妥善保管，仅发给想邀请的人。</p>
-      </div>
-    </section>
+      </section>
 
-    <!-- 邀请码列表 -->
-    <section class="panel">
-      <div class="panel-head">
-        <h2>📋 邀请码管理（{{ invites.length }}）</h2>
-        <button class="btn small ghost" @click="loadAll">刷新</button>
-      </div>
-      <p v-if="loading" class="muted">加载中…</p>
-      <p v-else-if="!invites.length" class="muted">还没有生成过邀请码。</p>
-      <div v-else class="file-table">
-        <div class="file-row file-head">
-          <span>邀请码</span>
-          <span>使用</span>
-          <span>有效期</span>
-          <span>状态</span>
-          <span>备注</span>
-          <span>创建时间</span>
-          <span>操作</span>
+      <!-- 文件运营 -->
+      <section v-else-if="activeTab === 'files'" class="panel">
+        <div class="panel-head">
+          <h2>📁 用户文件（{{ filteredFiles.length }}）</h2>
+          <div class="list-actions">
+            <select v-model="fileFilter" class="input filter-select" @change="loadFiles">
+              <option value="">全部状态</option>
+              <option value="uploaded">待处理</option>
+              <option value="approved">已放行</option>
+              <option value="rejected">已拒绝</option>
+              <option value="quarantined">已隔离</option>
+            </select>
+            <button class="btn small ghost" @click="loadFiles">刷新</button>
+          </div>
         </div>
-        <div v-for="item in invites" :key="item.id" class="file-row">
-          <span>
-            <code class="code-chip" :class="{ dim: !item.active }" @click="copyOne(item.code)" :title="'点击复制'">{{ item.code }}</code>
-          </span>
-          <span>{{ item.used_count }} / {{ item.max_uses }}</span>
-          <span class="muted">{{ item.expires_at ? formatTime(item.expires_at) : '永久' }}</span>
-          <span>
-            <span class="tag" :class="item.active ? 'tag-ok' : ''">{{ item.active ? '启用' : '停用' }}</span>
-            <span v-if="item.used_count >= item.max_uses" class="tag">已用完</span>
-          </span>
-          <span class="muted">{{ item.remark || '—' }}</span>
-          <span class="muted">{{ formatTime(item.created_at) }}</span>
-          <span class="file-actions">
-            <button class="btn small" @click="toggle(item)">
-              {{ item.active ? '停用' : '启用' }}
-            </button>
-            <button class="btn small danger" @click="removeInvite(item)">删除</button>
-          </span>
+        <p v-if="filesLoading" class="muted">加载中…</p>
+        <p v-else-if="!filteredFiles.length" class="muted">暂无用户上传的文件。</p>
+        <div v-else class="file-table">
+          <div class="file-row file-head">
+            <span>文件</span>
+            <span>上传者</span>
+            <span>分类</span>
+            <span>大小</span>
+            <span>状态 / 扫描</span>
+            <span>时间</span>
+            <span>操作</span>
+          </div>
+          <div v-for="file in filteredFiles" :key="file.id" class="file-row">
+            <span class="file-name">
+              <span class="file-icon">{{ extIcon(file.ext) }}</span>
+              <span class="file-title">{{ file.original_name }}</span>
+              <span v-if="file.description" class="file-desc">{{ file.description }}</span>
+            </span>
+            <span>{{ file.owner_username }}</span>
+            <span>{{ file.category || '—' }}</span>
+            <span>{{ formatSize(file.size_bytes) }}</span>
+            <span class="file-tags">
+              <span class="tag" :class="statusClass(file.status)">{{ statusLabel(file.status) }}</span>
+              <span class="tag" :class="scanClass(file.scan_status)">{{ scanLabel(file.scan_status) }}</span>
+              <span v-if="file.integrated" class="tag tag-ok">✅ 已整合</span>
+            </span>
+            <span class="muted">{{ formatTime(file.created_at) }}</span>
+            <span class="file-actions">
+              <button class="btn small" title="下载" @click="download(file)">⬇️</button>
+              <button v-if="file.status !== 'approved'" class="btn small" @click="setFileStatus(file, 'approved')">放行</button>
+              <button v-if="file.status !== 'rejected'" class="btn small danger" @click="setFileStatus(file, 'rejected')">拒绝</button>
+              <button v-if="file.status !== 'quarantined'" class="btn small" @click="setFileStatus(file, 'quarantined')">隔离</button>
+              <button class="btn small ghost" @click="rescan(file)">扫描</button>
+              <button class="btn small ghost" @click="toggleIntegrate(file)">
+                {{ file.integrated ? '取消整合' : '标记整合' }}
+              </button>
+              <button class="btn small danger" title="删除" @click="removeFile(file)">🗑️</button>
+            </span>
+          </div>
         </div>
-      </div>
-    </section>
-
-    <!-- 用户列表 -->
-    <section class="panel">
-      <div class="panel-head">
-        <h2>👥 注册用户（{{ users.length }}）</h2>
-        <button class="btn small ghost" @click="loadAll">刷新</button>
-      </div>
-      <p v-if="usersLoading" class="muted">加载中…</p>
-      <p v-else-if="!users.length" class="muted">暂无用户。</p>
-      <div v-else class="file-table">
-        <div class="file-row file-head">
-          <span>用户名</span>
-          <span>角色</span>
-          <span>注册时间</span>
-        </div>
-        <div v-for="user in users" :key="user.id" class="file-row">
-          <span class="file-name">{{ user.username }}</span>
-          <span><span class="tag" :class="user.is_admin ? 'tag-ok' : ''">{{ user.is_admin ? '管理员' : '普通用户' }}</span></span>
-          <span class="muted">{{ formatTime(user.created_at) }}</span>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
+const authUser = computed(() => auth.user)
+
+const tabs = [
+  { key: 'overview', icon: '📊', label: '概览' },
+  { key: 'invites', icon: '🎟️', label: '邀请码' },
+  { key: 'users', icon: '👥', label: '用户' },
+  { key: 'files', icon: '📁', label: '文件运营' },
+]
+const activeTab = ref('overview')
 
 const stats = reactive({ total_users: 0, total_invites: 0, active_invites: 0, unused_invites: 0 })
 const invites = ref([])
 const users = ref([])
+const files = ref([])
 const newCodes = ref([])
-const loading = ref(false)
+const invitesLoading = ref(false)
 const usersLoading = ref(false)
+const filesLoading = ref(false)
 const generating = ref(false)
 const error = ref('')
 const notice = ref('')
+const fileFilter = ref('')
+const filesLoaded = ref(false)
 
 const form = reactive({ count: 1, maxUses: 1, expiresDays: null, remark: '' })
+
+const filteredFiles = computed(() => files.value)
+
+function flashNotice(text) {
+  notice.value = text
+  setTimeout(() => (notice.value = ''), 4000)
+}
 
 function formatTime(value) {
   if (!value) return '—'
@@ -160,24 +285,80 @@ function formatTime(value) {
   return date.toLocaleString('zh-CN', { hour12: false })
 }
 
-async function loadAll() {
-  error.value = ''
-  loading.value = true
-  usersLoading.value = true
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+const STATUS = {
+  uploaded: ['待处理', 'tag-due'],
+  approved: ['已放行', 'tag-ok'],
+  rejected: ['已拒绝', 'tag-overdue'],
+  quarantined: ['已隔离', 'tag-overdue'],
+}
+const SCAN = {
+  pending: ['待扫描', 'tag-empty'],
+  clean: ['安全', 'tag-ok'],
+  infected: ['发现风险', 'tag-overdue'],
+  error: ['扫描异常', 'tag-overdue'],
+}
+function statusLabel(value) { return (STATUS[value] || [value])[0] }
+function statusClass(value) { return (STATUS[value] || ['', ''])[1] }
+function scanLabel(value) { return (SCAN[value] || [value])[0] }
+function scanClass(value) { return (SCAN[value] || ['', ''])[1] }
+function extIcon(ext) {
+  const map = {
+    '.pdf': '📕', '.doc': '📘', '.docx': '📘', '.ppt': '📙', '.pptx': '📙',
+    '.xls': '📗', '.xlsx': '📗', '.md': '📝', '.txt': '📄', '.csv': '📊',
+  }
+  return map[ext] || '📎'
+}
+
+function switchTab(key) {
+  activeTab.value = key
+  if (key === 'files' && !filesLoaded.value) loadFiles()
+}
+
+async function loadOverview() {
   try {
-    const [statsData, inviteList, userList] = await Promise.all([
-      api.adminStats(),
-      api.listInvites(),
-      api.listAdminUsers(),
-    ])
-    Object.assign(stats, statsData)
-    invites.value = inviteList
-    users.value = userList
+    Object.assign(stats, await api.adminStats())
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function loadInvites() {
+  invitesLoading.value = true
+  try {
+    invites.value = await api.listInvites()
   } catch (e) {
     error.value = e.message
   } finally {
-    loading.value = false
+    invitesLoading.value = false
+  }
+}
+
+async function loadUsers() {
+  usersLoading.value = true
+  try {
+    users.value = await api.listAdminUsers()
+  } catch (e) {
+    error.value = e.message
+  } finally {
     usersLoading.value = false
+  }
+}
+
+async function loadFiles() {
+  filesLoading.value = true
+  try {
+    files.value = await api.listFiles('all', fileFilter.value || undefined)
+    filesLoaded.value = true
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    filesLoading.value = false
   }
 }
 
@@ -191,12 +372,10 @@ async function generate() {
       expires_days: form.expiresDays || null,
       remark: form.remark || '',
     }
-    const created = await api.createInvites(payload)
-    newCodes.value = created
+    newCodes.value = await api.createInvites(payload)
     form.remark = ''
-    notice.value = `已生成 ${created.length} 个邀请码，可在下方复制`
-    await loadAll()
-    setTimeout(() => (notice.value = ''), 5000)
+    flashNotice(`已生成 ${newCodes.value.length} 个邀请码，可在下方复制`)
+    await loadInvites()
   } catch (e) {
     error.value = e.message
   } finally {
@@ -204,10 +383,10 @@ async function generate() {
   }
 }
 
-async function toggle(item) {
+async function toggleInvite(item) {
   try {
-    await api.updateInvite(item.id, { active: !item.active })
-    item.active = !item.active
+    const row = await api.updateInvite(item.id, { active: !item.active })
+    item.active = row.active
   } catch (e) {
     error.value = e.message
   }
@@ -223,31 +402,146 @@ async function removeInvite(item) {
   }
 }
 
+async function toggleUser(user) {
+  const action = user.is_active ? '禁用' : '启用'
+  if (user.is_active && !window.confirm(`确定禁用用户「${user.username}」吗？禁用后该账号无法登录。`)) return
+  try {
+    const row = await api.updateAdminUser(user.id, { is_active: !user.is_active })
+    user.is_active = row.is_active
+    flashNotice(`已${action}用户「${user.username}」`)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function download(file) {
+  try {
+    const blob = await api.downloadFile(file.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.original_name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function removeFile(file) {
+  if (!window.confirm(`确定删除「${file.original_name}」吗？磁盘文件将一并删除。`)) return
+  try {
+    await api.deleteFile(file.id)
+    files.value = files.value.filter((item) => item.id !== file.id)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function setFileStatus(file, status) {
+  try {
+    const row = await api.updateFile(file.id, { status })
+    Object.assign(file, row)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function rescan(file) {
+  try {
+    const row = await api.rescanFile(file.id)
+    Object.assign(file, row)
+    flashNotice(row.scan_message || '扫描完成')
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function toggleIntegrate(file) {
+  try {
+    const row = await api.updateFile(file.id, { integrated: !file.integrated })
+    Object.assign(file, row)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
 async function copyOne(code) {
   try {
     await navigator.clipboard.writeText(code)
-    notice.value = `已复制：${code}`
+    flashNotice(`已复制：${code}`)
   } catch {
     window.prompt('请手动复制：', code)
   }
-  setTimeout(() => (notice.value = ''), 2500)
 }
 
 async function copyCodes() {
   const text = newCodes.value.map((item) => item.code).join('\n')
   try {
     await navigator.clipboard.writeText(text)
-    notice.value = '已复制全部邀请码'
+    flashNotice('已复制全部邀请码')
   } catch {
     window.prompt('请手动复制：', text)
   }
-  setTimeout(() => (notice.value = ''), 2500)
 }
 
-onMounted(loadAll)
+onMounted(async () => {
+  await auth.init()
+  await Promise.all([loadOverview(), loadInvites(), loadUsers()])
+})
 </script>
 
 <style scoped>
+.admin-layout {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.admin-side {
+  width: 168px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--bg-soft, #eef1fa);
+  border: 1px solid var(--border, #d5dbe8);
+  border-radius: var(--radius, 16px);
+  position: sticky;
+  top: 16px;
+}
+.side-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm, 10px);
+  background: transparent;
+  color: var(--text, #1f2430);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.side-btn:hover {
+  background: var(--primary-soft, #e8edfd);
+}
+.side-btn.active {
+  background: var(--primary, #4f6ef7);
+  color: #fff;
+  font-weight: 600;
+}
+.side-icon {
+  font-size: 16px;
+}
+.admin-main {
+  flex: 1;
+  min-width: 0;
+}
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -277,5 +571,29 @@ onMounted(loadAll)
 }
 .code-chip.dim {
   opacity: 0.55;
+}
+.list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-select {
+  width: 140px;
+}
+@media (max-width: 767px) {
+  .admin-layout {
+    flex-direction: column;
+  }
+  .admin-side {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    position: static;
+    top: auto;
+  }
+  .side-btn {
+    flex-shrink: 0;
+    justify-content: center;
+  }
 }
 </style>

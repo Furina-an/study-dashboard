@@ -18,6 +18,7 @@ from ..models import InviteCode, User
 from ..schemas import (
     AdminStatsOut,
     AdminUserOut,
+    AdminUserUpdate,
     InviteCreate,
     InviteOut,
     InviteUpdate,
@@ -56,6 +57,16 @@ def _invite_out(invite: InviteCode) -> InviteOut:
         active=invite.active,
         remark=invite.remark,
         created_at=invite.created_at,
+    )
+
+
+def _user_out(user: User) -> AdminUserOut:
+    return AdminUserOut(
+        id=user.id,
+        username=user.username,
+        created_at=user.created_at,
+        is_active=user.is_active,
+        is_admin=is_admin_user(user),
     )
 
 
@@ -170,12 +181,25 @@ def list_users(
     rows = db.scalars(
         select(User).order_by(User.created_at.desc(), User.id.desc())
     ).all()
-    return [
-        AdminUserOut(
-            id=user.id,
-            username=user.username,
-            created_at=user.created_at,
-            is_admin=is_admin_user(user),
-        )
-        for user in rows
-    ]
+    return [_user_out(user) for user in rows]
+
+
+@router.patch("/users/{user_id}", response_model=AdminUserOut)
+def update_user(
+    user_id: int,
+    payload: AdminUserUpdate,
+    admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if not payload.is_active:
+        if user.id == admin.id:
+            raise HTTPException(status_code=400, detail="不能禁用自己")
+        if is_admin_user(user):
+            raise HTTPException(status_code=400, detail="不能禁用管理员账号")
+    user.is_active = payload.is_active
+    db.commit()
+    db.refresh(user)
+    return _user_out(user)

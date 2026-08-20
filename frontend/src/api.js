@@ -162,4 +162,5 @@ export const api = {
   updateInvite: (id, data) => request(`/api/admin/invites/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteInvite: (id) => request(`/api/admin/invites/${id}`, { method: 'DELETE' }),
   listAdminUsers: () => request('/api/admin/users'),
+  updateAdminUser: (id, data) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 }

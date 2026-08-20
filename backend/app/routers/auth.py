@@ -57,6 +57,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == payload.username))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="账号已被禁用，请联系管理员")
     return TokenResponse(
         access_token=create_access_token(user.id),
         user=_user_out(user),

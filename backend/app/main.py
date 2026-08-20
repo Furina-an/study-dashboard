@@ -27,6 +27,24 @@ from .routers import (
 )
 
 Base.metadata.create_all(bind=engine)
+
+
+def _ensure_users_is_active() -> None:
+    """幂等补列：老库 users 表缺 is_active 时补上（新库由 create_all 创建）。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    columns = {col["name"] for col in inspector.get_columns("users")}
+    if "is_active" not in columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1")
+            )
+
+
+_ensure_users_is_active()
 storage.ensure_dirs()
 
 # 启动时幂等装载高数提纲内容（全局只读数据）

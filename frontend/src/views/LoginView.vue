@@ -47,7 +47,8 @@ async function submit() {
   error.value = ''
   try {
     await auth.login(username.value, password.value)
-    router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/')
+    const redirect = typeof route.query.redirect === 'string' && route.query.redirect ? route.query.redirect : ''
+    router.push(redirect || (auth.isAdmin ? '/admin' : '/'))
   } catch (e) {
     error.value = e.message
   } finally {

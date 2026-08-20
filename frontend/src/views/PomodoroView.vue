@@ -63,6 +63,7 @@ const durationMin = ref(settings.pomodoroDefault || 25)
 const remaining = ref((settings.pomodoroDefault || 25) * 60)
 const running = ref(false)
 let timerId = null
+let endTime = 0 // 计划结束时间戳（ms），用于后台节流时校准
 
 const showCompleteDialog = ref(false)
 const finishedMinutes = ref(0)
@@ -93,16 +94,24 @@ watch(
   },
 )
 
+function syncRemaining() {
+  const remain = Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
+  if (remain !== remaining.value) remaining.value = remain
+  return remain
+}
+
 function start() {
   if (remaining.value <= 0) setDuration(durationMin.value)
+  endTime = Date.now() + remaining.value * 1000
   running.value = true
   timerId = setInterval(() => {
-    remaining.value -= 1
-    if (remaining.value <= 0) finish()
-  }, 1000)
+    if (syncRemaining() <= 0) finish()
+  }, 500)
+  syncRemaining()
 }
 
 function pause() {
+  if (running.value) syncRemaining()
   running.value = false
   if (timerId !== null) {
     clearInterval(timerId)
@@ -165,12 +174,18 @@ function beep() {
   }
 }
 
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible' && running.value) syncRemaining()
+}
+
 onBeforeUnmount(() => {
   if (timerId !== null) clearInterval(timerId)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 onMounted(async () => {
   await settings.fetch()
+  document.addEventListener('visibilitychange', onVisibilityChange)
   if (!running.value) {
     const def = settings.pomodoroDefault
     durationMin.value = def

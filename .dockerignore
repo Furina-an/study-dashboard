@@ -1,0 +1,9 @@
+# 构建缓存与本地数据
+**/__pycache__
+**/.pytest_cache
+backend/.venv
+backend/study.db
+frontend/node_modules
+frontend/dist
+.git
+*.zip

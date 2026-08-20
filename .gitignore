@@ -1,0 +1,14 @@
+backend/.venv/
+backend/**/__pycache__/
+backend/study.db
+backend/uploads/
+backend/tests/.upload_tmp/
+frontend/node_modules/
+frontend/dist/
+*.pyc
+.DS_Store
+frontend/.env
+frontend/.env.local
+data/
+userstore/**/__pycache__/
+userstore/tests/.tmp_test/

@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# 前端页面路由回退（vue-router history 模式）
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -3,17 +3,20 @@ services:
     name: studydash-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    # 构建阶段：先构建前端（Render Python 运行时自带 Node/npm），再安装后端依赖
+    buildCommand: cd ../frontend && npm ci && npm run build && cd ../backend && pip install -r requirements.txt
     startCommand: python run.py  # run.py 读取 PORT 环境变量（Render 注入），HOST 默认 0.0.0.0
     healthCheckPath: /api/health
     envVars:
       - key: ALLOWED_ORIGINS
-        value: https://your-site-name.netlify.app
+        value: https://studydash-api.onrender.com
+      # sync: false 表示该变量不在仓库中填写，部署后在 Render 后台手动设置
       - key: SECRET_KEY
-        value: change-me-to-a-long-random-string
-      - key: ADMIN_USERNAMES
-        value: admin
+        sync: false
       - key: INVITE_CODE
-        value: your-invite-code
-      # DATABASE_URL：在 Render 后台创建 PostgreSQL 后，把 Internal Database URL 填到
-      # Web Service 的环境变量里（见 README「部署上线」一节）
+        sync: false
+      - key: ADMIN_USERNAMES
+        sync: false
+      # DATABASE_URL：在 Render 后台创建 PostgreSQL 后，把 Internal Database URL 填入
+      - key: DATABASE_URL
+        sync: false

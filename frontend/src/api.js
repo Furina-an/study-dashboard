@@ -183,4 +183,20 @@ export const api = {
     const res = await fileRequest(`/api/math/resources/${id}/download`)
     return res.blob()
   },
+
+  // AI 助教（DeepTutor 辅导模式）
+  listTutorSessions: () => request('/api/tutor/sessions'),
+  listTutorMessages: (id) => request(`/api/tutor/sessions/${id}/messages`),
+  tutorChat: (data) => request('/api/tutor/chat', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTutorSession: (id) => request(`/api/tutor/sessions/${id}`, { method: 'DELETE' }),
+
+  // 题库与测验（DeepTutor 出题/掌握模式）
+  listQuestions: (subject, source) => request(`/api/questions${qs({ subject, source })}`),
+  createQuestion: (data) => request('/api/questions', { method: 'POST', body: JSON.stringify(data) }),
+  updateQuestion: (id, data) => request(`/api/questions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteQuestion: (id) => request(`/api/questions/${id}`, { method: 'DELETE' }),
+  generateQuestions: (data) => request('/api/questions/generate', { method: 'POST', body: JSON.stringify(data) }),
+  quizSession: (subject, count) => request(`/api/quiz/session${qs({ subject, count })}`),
+  quizAnswer: (data) => request('/api/quiz/answer', { method: 'POST', body: JSON.stringify(data) }),
+  quizMastery: () => request('/api/quiz/mastery'),
 }

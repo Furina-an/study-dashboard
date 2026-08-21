@@ -12,7 +12,8 @@ def test_settings_defaults(client, auth_headers):
     assert data["review_intervals"] == [1, 2, 4, 7, 15, 30]
     assert data["habit_frequency_default"] == "daily"
     assert data["default_estimated_minutes"] == 25
-    assert len(data["hub_cards"]) == 8
+    assert len(data["hub_cards"]) == 10
+    assert {"math", "tutor", "quiz"} <= {c["key"] for c in data["hub_cards"]}
     assert data["task_subjects"] == []
 
 
@@ -85,7 +86,7 @@ def test_settings_hub_cards_patch_completes(client, auth_headers):
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data["hub_cards"]) == 8
+    assert len(data["hub_cards"]) == 10
     by_key = {card["key"]: card for card in data["hub_cards"]}
     assert by_key["tasks"]["visible"] is False
     assert by_key["math"]["order"] == 1

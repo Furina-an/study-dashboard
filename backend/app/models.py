@@ -46,6 +46,13 @@ class User(Base):
         back_populates="user"
     )
     files: Mapped[list["StudyFile"]] = relationship(back_populates="user")
+    tutor_sessions: Mapped[list["TutorSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    questions: Mapped[list["Question"]] = relationship(back_populates="user")
+    quiz_attempts: Mapped[list["QuizAttempt"]] = relationship(
+        back_populates="user"
+    )
 
 
 class Plan(Base):
@@ -487,3 +494,92 @@ class InviteCode(Base):
         String(200), default="", server_default="", nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class TutorSession(Base):
+    """AI 助教对话会话（DeepTutor 辅导模式）。"""
+
+    __tablename__ = "tutor_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    title: Mapped[str] = mapped_column(
+        String(100), default="新对话", server_default="新对话", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
+    user: Mapped["User"] = relationship(back_populates="tutor_sessions")
+    messages: Mapped[list["TutorMessage"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class TutorMessage(Base):
+    """AI 助教会话内的单条消息。"""
+
+    __tablename__ = "tutor_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("tutor_sessions.id"), index=True, nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(10), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    session: Mapped["TutorSession"] = relationship(back_populates="messages")
+
+
+class Question(Base):
+    """题库题目：手动录入或 AI 生成（DeepTutor 智能出题模式）。"""
+
+    __tablename__ = "questions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    subject: Mapped[str] = mapped_column(
+        String(50), default="", server_default="", nullable=False
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    options: Mapped[list] = mapped_column(JSON, nullable=False)
+    answer: Mapped[int] = mapped_column(Integer, nullable=False)
+    explanation: Mapped[str] = mapped_column(
+        Text, default="", server_default="", nullable=False
+    )
+    source: Mapped[str] = mapped_column(
+        String(10), default="manual", server_default="manual", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    user: Mapped["User"] = relationship(back_populates="questions")
+
+
+class QuizAttempt(Base):
+    """单次答题记录（用于掌握度统计）。"""
+
+    __tablename__ = "quiz_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    question_id: Mapped[int] = mapped_column(
+        ForeignKey("questions.id"), nullable=False
+    )
+    answer_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    answered_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, index=True
+    )
+
+    user: Mapped["User"] = relationship(back_populates="quiz_attempts")

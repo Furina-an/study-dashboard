@@ -39,6 +39,18 @@ const routes = [
     meta: { title: '计划', requiresAuth: true },
   },
   {
+    path: '/tutor',
+    name: 'tutor',
+    component: () => import('../views/TutorView.vue'),
+    meta: { title: 'AI 助教', requiresAuth: true },
+  },
+  {
+    path: '/quiz',
+    name: 'quiz',
+    component: () => import('../views/QuizView.vue'),
+    meta: { title: '测验', requiresAuth: true },
+  },
+  {
     path: '/files',
     name: 'files',
     component: () => import('../views/FilesView.vue'),

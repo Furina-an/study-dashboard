@@ -18,11 +18,14 @@ from .routers import (
     math,
     plan_templates,
     plans,
+    questions,
+    quiz,
     reviews,
     sessions,
     settings,
     stats,
     tasks,
+    tutor,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -110,6 +113,9 @@ app.include_router(math.router)
 app.include_router(habits.router)
 app.include_router(reviews.router)
 app.include_router(plans.router)
+app.include_router(questions.router)
+app.include_router(quiz.router)
+app.include_router(tutor.router)
 app.include_router(tasks.router)
 app.include_router(sessions.router)
 app.include_router(stats.router)

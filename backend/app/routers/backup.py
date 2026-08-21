@@ -14,10 +14,14 @@ from ..models import (
     MathProgress,
     Plan,
     PlanTemplate,
+    Question,
+    QuizAttempt,
     Review,
     Session as StudySession,
     Task,
     TaskCheckin,
+    TutorMessage,
+    TutorSession,
     User,
     UserSettings,
 )
@@ -209,6 +213,62 @@ def export_backup(
                     )
                 ).all()
             ],
+            "questions": [
+                {
+                    "id": question.id,
+                    "subject": question.subject,
+                    "question": question.question,
+                    "options": question.options,
+                    "answer": question.answer,
+                    "explanation": question.explanation,
+                    "source": question.source,
+                    "created_at": _iso(question.created_at),
+                }
+                for question in db.scalars(
+                    select(Question)
+                    .where(Question.user_id == user.id)
+                    .order_by(Question.id)
+                ).all()
+            ],
+            "quiz_attempts": [
+                {
+                    "question_id": attempt.question_id,
+                    "answer_index": attempt.answer_index,
+                    "correct": attempt.correct,
+                    "answered_at": _iso(attempt.answered_at),
+                }
+                for attempt in db.scalars(
+                    select(QuizAttempt)
+                    .where(QuizAttempt.user_id == user.id)
+                    .order_by(QuizAttempt.id)
+                ).all()
+            ],
+            "tutor_sessions": [
+                {
+                    "id": session.id,
+                    "title": session.title,
+                    "created_at": _iso(session.created_at),
+                    "updated_at": _iso(session.updated_at),
+                }
+                for session in db.scalars(
+                    select(TutorSession)
+                    .where(TutorSession.user_id == user.id)
+                    .order_by(TutorSession.id)
+                ).all()
+            ],
+            "tutor_messages": [
+                {
+                    "session_id": message.session_id,
+                    "role": message.role,
+                    "content": message.content,
+                    "created_at": _iso(message.created_at),
+                }
+                for message in db.scalars(
+                    select(TutorMessage)
+                    .where(TutorMessage.user_id == user.id)
+                    .order_by(TutorMessage.id)
+                ).all()
+            ],
         },
     }
 
@@ -227,7 +287,7 @@ def import_backup(
     data = payload.get("data")
     if not isinstance(data, dict):
         raise HTTPException(status_code=400, detail="备份文件缺少 data 字段")
-    for key in ("plans", "tasks", "sessions", "checkins", "reviews"):
+    for key in ("plans", "tasks", "sessions", "checkins", "reviews", "questions", "quiz_attempts", "tutor_sessions", "tutor_messages"):
         if key in data and not isinstance(data[key], list):
             raise HTTPException(status_code=400, detail=f"{key} 字段格式不正确")
 
@@ -242,6 +302,10 @@ def import_backup(
     db.execute(delete(AIConfig).where(AIConfig.user_id == user.id))
     db.execute(delete(UserSettings).where(UserSettings.user_id == user.id))
     db.execute(delete(PlanTemplate).where(PlanTemplate.user_id == user.id))
+    db.execute(delete(QuizAttempt).where(QuizAttempt.user_id == user.id))
+    db.execute(delete(Question).where(Question.user_id == user.id))
+    db.execute(delete(TutorMessage).where(TutorMessage.user_id == user.id))
+    db.execute(delete(TutorSession).where(TutorSession.user_id == user.id))
     db.flush()
 
     counts = {
@@ -255,6 +319,10 @@ def import_backup(
         "math_notes": 0,
         "settings": 0,
         "plan_templates": 0,
+        "questions": 0,
+        "quiz_attempts": 0,
+        "tutor_sessions": 0,
+        "tutor_messages": 0,
     }
 
     # 2) 计划（先建行拿新 id，再回填父子关系）
@@ -411,6 +479,83 @@ def import_backup(
             )
         )
         counts["plan_templates"] += 1
+
+    # 9a) 题库与答题记录（question_id 重映射）
+    question_map: dict[int, int] = {}
+    for question in data.get("questions", []):
+        if not question.get("question"):
+            continue
+        options = question.get("options")
+        if not isinstance(options, list) or len(options) < 2:
+            continue
+        options = [str(option)[:200] for option in options[:6]]
+        answer = _int(question.get("answer"), 0, 0, len(options) - 1)
+        row = Question(
+            user_id=user.id,
+            subject=_text(question.get("subject"), "", 50),
+            question=_text(question.get("question"), "", 2000),
+            options=options,
+            answer=answer,
+            explanation=_text(question.get("explanation"), "", 2000),
+            source=(
+                question.get("source")
+                if question.get("source") in ("manual", "ai")
+                else "manual"
+            ),
+            created_at=_parse_dt(question.get("created_at")),
+        )
+        db.add(row)
+        db.flush()
+        question_map[_entry_id(question, "题目")] = row.id
+        counts["questions"] += 1
+
+    for attempt in data.get("quiz_attempts", []):
+        question_id = attempt.get("question_id")
+        if question_id not in question_map:
+            continue
+        db.add(
+            QuizAttempt(
+                user_id=user.id,
+                question_id=question_map[int(question_id)],
+                answer_index=_int(attempt.get("answer_index"), 0, 0, 20),
+                correct=bool(attempt.get("correct", False)),
+                answered_at=_parse_dt(attempt.get("answered_at")),
+            )
+        )
+        counts["quiz_attempts"] += 1
+
+    # 9b) AI 助教对话（session_id 重映射）
+    session_map: dict[int, int] = {}
+    for tutor in data.get("tutor_sessions", []):
+        row = TutorSession(
+            user_id=user.id,
+            title=_text(tutor.get("title"), "新对话", 100),
+            created_at=_parse_dt(tutor.get("created_at")),
+            updated_at=_parse_dt(tutor.get("updated_at")),
+        )
+        db.add(row)
+        db.flush()
+        session_map[_entry_id(tutor, "对话")] = row.id
+        counts["tutor_sessions"] += 1
+    for message in data.get("tutor_messages", []):
+        session_id = message.get("session_id")
+        if session_id not in session_map:
+            continue
+        role = (
+            message.get("role")
+            if message.get("role") in ("user", "assistant")
+            else "user"
+        )
+        db.add(
+            TutorMessage(
+                session_id=session_map[int(session_id)],
+                user_id=user.id,
+                role=role,
+                content=_text(message.get("content"), "", 8000),
+                created_at=_parse_dt(message.get("created_at")),
+            )
+        )
+        counts["tutor_messages"] += 1
 
     # 9) 高数进度与笔记（按内容键映射）
     item_key_map = {}

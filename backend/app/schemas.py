@@ -464,3 +464,109 @@ class MathResourceOut(BaseModel):
     size_bytes: int
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------- AI 助教（DeepTutor 辅导模式） ----------------
+
+class TutorChatRequest(BaseModel):
+    session_id: int | None = None
+    message: str = Field(..., min_length=1, max_length=4000)
+    subject: str = Field("", max_length=50)
+
+
+class TutorMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    role: str
+    content: str
+    created_at: datetime
+
+
+class TutorSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    message_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class TutorChatResult(BaseModel):
+    session_id: int
+    title: str
+    reply: str
+
+
+# ---------------- 题库与测验（DeepTutor 出题/掌握模式） ----------------
+
+class QuestionCreate(BaseModel):
+    subject: str = Field("", max_length=50)
+    question: str = Field(..., min_length=1, max_length=2000)
+    options: list[str] = Field(..., min_length=2, max_length=6)
+    answer: int = Field(..., ge=0)
+    explanation: str = Field("", max_length=2000)
+
+
+class QuestionUpdate(BaseModel):
+    subject: str | None = Field(None, max_length=50)
+    question: str | None = Field(None, min_length=1, max_length=2000)
+    options: list[str] | None = Field(None, min_length=2, max_length=6)
+    answer: int | None = Field(None, ge=0)
+    explanation: str | None = Field(None, max_length=2000)
+
+
+class QuestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    subject: str
+    question: str
+    options: list[str]
+    answer: int
+    explanation: str
+    source: str
+    created_at: datetime
+
+
+class QuizQuestionOut(BaseModel):
+    """测验时下发给用户的题目：不含答案与解析。"""
+
+    id: int
+    subject: str
+    question: str
+    options: list[str]
+
+
+class QuizAnswerRequest(BaseModel):
+    question_id: int
+    answer_index: int = Field(..., ge=0)
+
+
+class QuizAnswerResult(BaseModel):
+    correct: bool
+    correct_answer: int
+    explanation: str
+
+
+class GenerateQuestionsRequest(BaseModel):
+    subject: str = Field(..., min_length=1, max_length=50)
+    topic: str = Field("", max_length=200)
+    count: int = Field(5, ge=1, le=10)
+
+
+class MasterySubject(BaseModel):
+    subject: str
+    total: int
+    correct: int
+    accuracy: float
+    last_7d_total: int
+    last_7d_correct: int
+
+
+class MasteryStats(BaseModel):
+    subjects: list[MasterySubject]
+    total_answered: int
+    total_correct: int
+    overall_accuracy: float

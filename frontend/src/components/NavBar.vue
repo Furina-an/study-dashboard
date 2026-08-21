@@ -7,6 +7,8 @@
         <router-link to="/pomodoro" active-class="active">专注</router-link>
         <router-link to="/tasks" active-class="active">任务</router-link>
         <router-link to="/plans" active-class="active">计划</router-link>
+        <router-link to="/tutor" active-class="active">助教</router-link>
+        <router-link to="/quiz" active-class="active">测验</router-link>
         <router-link to="/files" active-class="active">文件</router-link>
         <router-link to="/reviews" active-class="active">复习</router-link>
         <router-link to="/stats" active-class="active">统计</router-link>

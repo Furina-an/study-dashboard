@@ -1,6 +1,6 @@
 # StudyDash 学习管理台
 
-一个用于练手全栈开发的学习管理台：番茄钟 + 任务管理 + 计划拆解 + 学习统计。
+一个用于练手全栈开发的学习管理台：番茄钟 + 任务管理 + 计划拆解 + AI 助教 + 题库测验 + 学习统计。
 
 - 前端：Vue 3 + Vite + Vue Router + Pinia
 - 后端：FastAPI + SQLAlchemy + SQLite
@@ -10,12 +10,14 @@
 - 习惯打卡：任务可标记为习惯，每天打卡、连续天数统计
 - 复习提醒：任务/计划完成后自动生成艾宾浩斯 1/2/4/7/15/30 天复习节点
 - 统计可视化：ECharts 专注热力图、30 天趋势、连续专注 streak
+- AI 助教（借鉴港大 DeepTutor 辅导模式）：引导式辅导答疑，多会话持久化，支持指定科目与 Markdown 回复
+- 题库与测验（借鉴 DeepTutor 出题/掌握模式）：手动录题 + AI 一键出题，随机组卷即时判分，按科目统计掌握度（含近 7 天）
 - UI：全新设计语言（靛蓝主色 + 卡片化 + 响应式），支持深色/浅色主题一键切换
 - 个性化自定义：按账号保存外观（浅色/深色/跟随系统 + 5 色强调色）、番茄钟时长、复习间隔、习惯默认频率、任务默认分钟与科目库、首页功能卡片显隐排序、自定义计划模板，换设备自动同步
 - 学习文件：用户上传学习资料（PDF / Office / Markdown / 图片），按账号隔离存储（扩展名白名单 + 文件头校验 + 大小限制）；管理员可**推荐文件全员分享**、放行、标记整合；安全中心支持**一键全量查杀**（只读扫描，风险文件隔离可放行，杀毒命令 `SCAN_COMMAND` 预留）
 - 总站首页：功能区卡片门户，整合学习管理与高数复习，预留雅思 / 冲刺 / 报告等扩展位
 - userstore 独立模块：每用户一个 JSON 主文件，独立快照备份（保留 10 份）+ 恢复，上传文件专属空间（UUID 命名 + manifest 索引 + 隔离区），纯标准库实现、可独立 `pytest` 测试，预留后续 FastAPI 接入
-- 数据备份：一键导出 / 导入全部数据（任务、计划、专注、打卡、复习、个性化设置、计划模板、AI 配置、高数进度与笔记），换设备 / 换账号恢复
+- 数据备份：一键导出 / 导入全部数据（任务、计划、专注、打卡、复习、个性化设置、计划模板、AI 配置、高数进度与笔记、题库、答题记录、AI 助教对话），换设备 / 换账号恢复
 - 云端就绪：后端端口由环境变量 `PORT` 注入（Render / Docker / 单服务器通用），提供 `run.py` 统一入口与 `Dockerfile`
 - 高数资料：高数复习页改为**管理员发布的资料区**，管理员可随时上传 / 编辑 / 删除资料文件，全员浏览下载
 
@@ -105,6 +107,18 @@ cd backend
 | PUT | `/api/ai/config` | 保存 AI 配置（Key 加密存储） |
 | DELETE | `/api/ai/config` | 清除 AI 配置 |
 | POST | `/api/ai/test` | 测试 AI 连接（可传临时参数） |
+| POST | `/api/tutor/chat` | AI 助教：发送消息（可带 `session_id` / `subject`） |
+| GET | `/api/tutor/sessions` | AI 助教会话列表 |
+| GET | `/api/tutor/sessions/{id}/messages` | 读取某会话消息 |
+| DELETE | `/api/tutor/sessions/{id}` | 删除会话 |
+| GET | `/api/questions` | 题库列表（`?subject=` / `?source=manual|ai`） |
+| POST | `/api/questions` | 手动录入题目 |
+| PATCH | `/api/questions/{id}` | 修改题目 |
+| DELETE | `/api/questions/{id}` | 删除题目 |
+| POST | `/api/questions/generate` | AI 一键出题（科目 / 知识点 / 题量） |
+| GET | `/api/quiz/session?subject=&count=` | 随机组卷（不含答案） |
+| POST | `/api/quiz/answer` | 提交答案并判分 |
+| GET | `/api/quiz/mastery` | 掌握度统计（按科目正确率 + 近 7 天） |
 | POST | `/api/sessions` | 记录一次完成的专注 |
 | GET | `/api/stats/today` | 今日统计 |
 | GET | `/api/stats/trend?days=7` | 最近 N 天专注趋势 |
@@ -144,7 +158,7 @@ cd backend
 
 高数复习页为「管理员发布资料区」：管理员在运营后台「高数资料」上传 / 编辑 / 删除资料文件（存于 `backend/uploads/math_resources/`），所有用户浏览下载。旧版提纲、进度与笔记数据保留在库中不再展示。
 
-备份说明：`/api/backup/export` 导出的 JSON 包含任务、计划、专注记录、习惯打卡、复习节点、个性化设置、计划模板、AI 配置（不含 API Key）、高数进度与章节笔记；`/api/backup/import` 会【覆盖】当前账号全部数据，导入前请先导出备份。API Key 加密存储不随备份导出，恢复后需到「AI 设置」重新填写。
+备份说明：`/api/backup/export` 导出的 JSON 包含任务、计划、专注记录、习惯打卡、复习节点、个性化设置、计划模板、AI 配置（不含 API Key）、高数进度与章节笔记、题库、答题记录、AI 助教对话；`/api/backup/import` 会【覆盖】当前账号全部数据，导入前请先导出备份。API Key 加密存储不随备份导出，恢复后需到「AI 设置」重新填写。
 
 计划状态同上。计划树支持无限层级；「拆解」弹层可选内置模板（学习/项目/备考）或 AI 拆解；「流程图」标签页用 SVG 自绘树状图，可一键导出 SVG / PNG。
 

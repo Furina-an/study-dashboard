@@ -156,6 +156,8 @@ const liveCards = [
   { key: 'reviews', to: '/reviews', icon: '🔁', title: '复习提醒', desc: '自定义艾宾浩斯间隔复习节点' },
   { key: 'stats', to: '/stats', icon: '📊', title: '统计看板', desc: '专注热力图、30 天趋势、连续天数' },
   { key: 'ai', to: '/ai-settings', icon: '🤖', title: 'AI 服务', desc: '配置 OpenAI 兼容接口，用于计划 AI 拆解' },
+  { key: 'tutor', to: '/tutor', icon: '🧑‍🏫', title: 'AI 助教', desc: '引导式辅导答疑，随时提问' },
+  { key: 'quiz', to: '/quiz', icon: '📝', title: '题库测验', desc: '题库 + AI 出题 + 掌握度统计' },
   { key: 'settings', to: '/settings', icon: '⚙️', title: '数据备份', desc: '个性化设置、导出 / 导入备份，部署与端口' },
 ]
 

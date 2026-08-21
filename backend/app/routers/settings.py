@@ -14,7 +14,7 @@ from .. import storage
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 ACCENTS = {"indigo", "green", "rose", "amber", "violet"}
-HUB_CARD_KEYS = ["math", "pomodoro", "tasks", "plans", "reviews", "stats", "ai", "files"]
+HUB_CARD_KEYS = ["math", "pomodoro", "tasks", "plans", "reviews", "stats", "ai", "files", "tutor", "quiz"]
 DEFAULT_POMODORO_DURATIONS = [25, 45, 60]
 DEFAULT_REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]
 

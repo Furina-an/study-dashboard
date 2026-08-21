@@ -147,6 +147,10 @@ def test_export_import_roundtrip(client, db_session, auth_headers):
         "math_notes": 1,
         "settings": 1,
         "plan_templates": 0,
+        "questions": 0,
+        "quiz_attempts": 0,
+        "tutor_sessions": 0,
+        "tutor_messages": 0,
     }
 
     # 计划父子关系重映射正确
@@ -245,3 +249,67 @@ def test_import_missing_id_returns_400(client, auth_headers):
     }
     response = client.post("/api/backup/import", json=payload, headers=auth_headers)
     assert response.status_code == 400
+
+
+def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
+    """备份应包含题库、答题记录与 AI 助教对话，并能完整恢复。"""
+    # 造数据：1 道题目 + 2 次答题 + 1 段助教对话
+    question = client.post(
+        "/api/questions",
+        json={
+            "subject": "数学",
+            "question": "备份测试题",
+            "options": ["A", "B"],
+            "answer": 1,
+            "explanation": "解析",
+        },
+        headers=auth_headers,
+    ).json()
+    qid = question["id"]
+    client.post(
+        "/api/quiz/answer",
+        json={"question_id": qid, "answer_index": 0},
+        headers=auth_headers,
+    )
+    client.post(
+        "/api/quiz/answer",
+        json={"question_id": qid, "answer_index": 1},
+        headers=auth_headers,
+    )
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setattr(
+        "app.routers.tutor.chat_completion",
+        lambda *a, **k: "助教回复",
+    )
+    client.post(
+        "/api/tutor/chat", json={"message": "备份测试问题"}, headers=auth_headers
+    )
+
+    exported = client.get("/api/backup/export", headers=auth_headers).json()
+    data = exported["data"]
+    assert len(data["questions"]) == 1
+    assert len(data["quiz_attempts"]) == 2
+    assert len(data["tutor_sessions"]) == 1
+    assert len(data["tutor_messages"]) == 2
+
+    imported = client.post(
+        "/api/backup/import", json=exported, headers=auth_headers
+    ).json()
+    assert imported["counts"]["questions"] == 1
+    assert imported["counts"]["quiz_attempts"] == 2
+    assert imported["counts"]["tutor_sessions"] == 1
+    assert imported["counts"]["tutor_messages"] == 2
+
+    # 恢复后可查询
+    listed = client.get("/api/questions", headers=auth_headers).json()
+    assert len(listed) == 1
+    assert listed[0]["question"] == "备份测试题"
+    mastery = client.get("/api/quiz/mastery", headers=auth_headers).json()
+    assert mastery["total_answered"] == 2
+    assert mastery["total_correct"] == 1
+    sessions = client.get("/api/tutor/sessions", headers=auth_headers).json()
+    assert len(sessions) == 1
+    messages = client.get(
+        f"/api/tutor/sessions/{sessions[0]['id']}/messages", headers=auth_headers
+    ).json()
+    assert len(messages) == 2

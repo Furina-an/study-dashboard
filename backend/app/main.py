@@ -28,22 +28,31 @@ from .routers import (
 Base.metadata.create_all(bind=engine)
 
 
-def _ensure_users_is_active() -> None:
-    """幂等补列：老库 users 表缺 is_active 时补上（新库由 create_all 创建）。"""
+def _ensure_column(table: str, column: str, ddl: str) -> None:
+    """幂等补列：老库缺列时补上（新库由 create_all 创建，重复执行安全）。"""
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
+    if table not in inspector.get_table_names():
         return
-    columns = {col["name"] for col in inspector.get_columns("users")}
-    if "is_active" not in columns:
+    columns = {col["name"] for col in inspector.get_columns(table)}
+    if column not in columns:
         with engine.begin() as conn:
-            conn.execute(
-                text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1")
-            )
+            conn.execute(text(ddl))
+        print(f"已为 {table} 补列 {column}")
 
 
-_ensure_users_is_active()
+# 旧库迁移：users.is_active（封号能力）、study_files.is_recommended（推荐分享）
+_ensure_column(
+    "users",
+    "is_active",
+    "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1",
+)
+_ensure_column(
+    "study_files",
+    "is_recommended",
+    "ALTER TABLE study_files ADD COLUMN is_recommended BOOLEAN DEFAULT 0",
+)
 storage.ensure_dirs()
 
 app = FastAPI(title="StudyDash API", version="0.1.0")

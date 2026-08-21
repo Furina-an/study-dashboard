@@ -44,6 +44,17 @@ def main() -> None:
             )
         print("已为 users 添加 is_active 列")
 
+    if "study_files" in inspector.get_table_names():
+        file_columns = {col["name"] for col in inspector.get_columns("study_files")}
+        if "is_recommended" not in file_columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE study_files ADD COLUMN is_recommended BOOLEAN DEFAULT 0"
+                    )
+                )
+            print("已为 study_files 添加 is_recommended 列")
+
     task_columns = {col["name"] for col in inspector.get_columns("tasks")}
     if "plan_id" not in task_columns:
         with engine.begin() as conn:

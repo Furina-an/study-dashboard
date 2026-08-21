@@ -28,31 +28,53 @@ from .routers import (
 Base.metadata.create_all(bind=engine)
 
 
-def _ensure_column(table: str, column: str, ddl: str) -> None:
-    """幂等补列：老库缺列时补上（新库由 create_all 创建，重复执行安全）。"""
+def _ensure_column(table: str, column: str, pg_default: str) -> None:
+    """幂等补列/修列：兼容 SQLite 与 PostgreSQL 旧库。
+
+    - PostgreSQL：ADD COLUMN IF NOT EXISTS（列已存在不报错）后再把列类型
+      统一修正为 BOOLEAN（部分旧库该列可能是 INTEGER，写入会失败）。
+    - SQLite：检查缺列后 ALTER 补列。
+    - 任何迁移失败只打印警告，不阻塞服务启动，避免整站离线。
+    """
     from sqlalchemy import inspect, text
 
-    inspector = inspect(engine)
-    if table not in inspector.get_table_names():
-        return
-    columns = {col["name"] for col in inspector.get_columns(table)}
-    if column not in columns:
-        with engine.begin() as conn:
-            conn.execute(text(ddl))
-        print(f"已为 {table} 补列 {column}")
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        backend = engine.url.get_backend_name()
+        if backend == "postgresql":
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS "
+                        f"{column} BOOLEAN DEFAULT {pg_default}"
+                    )
+                )
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ALTER COLUMN {column} "
+                        "TYPE BOOLEAN USING " + f"({column}::boolean)"
+                    )
+                )
+        else:
+            columns = {col["name"] for col in inspector.get_columns(table)}
+            if column not in columns:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table} ADD COLUMN "
+                            f"{column} BOOLEAN DEFAULT {pg_default}"
+                        )
+                    )
+        print(f"已确保 {table}.{column}")
+    except Exception as exc:  # noqa: BLE001 - 迁移失败不阻塞启动
+        print(f"补列 {table}.{column} 失败（已跳过，不影响启动）：{exc}")
 
 
 # 旧库迁移：users.is_active（封号能力）、study_files.is_recommended（推荐分享）
-_ensure_column(
-    "users",
-    "is_active",
-    "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1",
-)
-_ensure_column(
-    "study_files",
-    "is_recommended",
-    "ALTER TABLE study_files ADD COLUMN is_recommended BOOLEAN DEFAULT 0",
-)
+_ensure_column("users", "is_active", "true")
+_ensure_column("study_files", "is_recommended", "false")
 storage.ensure_dirs()
 
 app = FastAPI(title="StudyDash API", version="0.1.0")

@@ -10,6 +10,39 @@
     <p v-if="store.error" class="banner error">{{ store.error }}</p>
     <p v-if="notice" class="banner info">{{ notice }}</p>
 
+    <!-- 推荐资料库 -->
+    <section v-if="recommended.length" class="panel">
+      <div class="panel-head">
+        <h2>📚 推荐资料库（管理员精选）</h2>
+        <button class="btn small ghost" @click="loadRecommended">刷新</button>
+      </div>
+      <p v-if="recLoading" class="muted">加载中…</p>
+      <div v-else class="file-table">
+        <div class="file-row file-head">
+          <span>文件</span>
+          <span>分类</span>
+          <span>大小</span>
+          <span>上传者</span>
+          <span>时间</span>
+          <span>操作</span>
+        </div>
+        <div v-for="file in recommended" :key="file.id" class="file-row">
+          <span class="file-name">
+            <span class="file-icon">{{ extIcon(file.ext) }}</span>
+            <span class="file-title">{{ file.original_name }}</span>
+            <span v-if="file.description" class="file-desc">{{ file.description }}</span>
+          </span>
+          <span>{{ file.category || '—' }}</span>
+          <span>{{ formatSize(file.size_bytes) }}</span>
+          <span>{{ file.owner_username }}</span>
+          <span class="muted">{{ formatTime(file.created_at) }}</span>
+          <span class="file-actions">
+            <button class="btn small" title="下载" @click="download(file)">⬇️</button>
+          </span>
+        </div>
+      </div>
+    </section>
+
     <!-- 上传区 -->
     <section class="panel">
       <h2>⬆️ 上传文件</h2>
@@ -121,6 +154,19 @@ const uploading = ref(false)
 const notice = ref('')
 const maxMb = computed(() => settings.settings?.max_upload_mb || 20)
 const categoryOptions = ['数学', '英语', '专业课', '笔记', '试卷', '真题', '其他']
+const recommended = ref([])
+const recLoading = ref(false)
+
+async function loadRecommended() {
+  recLoading.value = true
+  try {
+    recommended.value = await api.listRecommendedFiles()
+  } catch (e) {
+    store.error = e.message
+  } finally {
+    recLoading.value = false
+  }
+}
 
 function onPick(event) {
   picked.value = event.target.files?.[0] || null
@@ -243,6 +289,6 @@ function formatTime(value) {
 
 onMounted(async () => {
   await settings.fetch()
-  await store.fetch(auth.isAdmin ? store.scope : 'mine')
+  await Promise.all([store.fetch(auth.isAdmin ? store.scope : 'mine'), loadRecommended()])
 })
 </script>

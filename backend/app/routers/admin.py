@@ -9,12 +9,14 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timedelta
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import InviteCode, User
+from ..models import InviteCode, ScanLog, StudyFile, User
 from ..schemas import (
     AdminStatsOut,
     AdminUserOut,
@@ -22,8 +24,12 @@ from ..schemas import (
     InviteCreate,
     InviteOut,
     InviteUpdate,
+    ScanAllResult,
+    ScanLogOut,
+    ScanSummaryOut,
 )
 from ..security import get_current_user, is_admin_user
+from .. import storage
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -203,3 +209,103 @@ def update_user(
     db.commit()
     db.refresh(user)
     return _user_out(user)
+
+
+# ---------------- 安全中心：杀毒扫描（只读扫描，不删除任何用户文件） ----------------
+
+
+@router.get("/scan-summary", response_model=ScanSummaryOut)
+def scan_summary(
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.scalars(select(StudyFile)).all()
+    counts = {scan_status: 0 for scan_status in storage.SCAN_STATUS}
+    for row in rows:
+        counts[row.scan_status] = counts.get(row.scan_status, 0) + 1
+    command = os.getenv("SCAN_COMMAND", "").strip()
+    return ScanSummaryOut(
+        total_files=len(rows),
+        pending=counts.get("pending", 0),
+        clean=counts.get("clean", 0),
+        infected=counts.get("infected", 0),
+        error=counts.get("error", 0),
+        scan_command_configured=bool(command),
+        scan_command=command,
+    )
+
+
+@router.post("/scan-all", response_model=ScanAllResult)
+def scan_all(
+    admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    """全量重扫所有用户文件：只读扫描 + 更新状态；命中风险仅移入隔离区，可随时放行。"""
+    rows = db.scalars(select(StudyFile)).all()
+    counts = {"clean": 0, "infected": 0, "error": 0, "pending": 0, "skipped": 0}
+    for row in rows:
+        path = storage.file_path(row)
+        if not path.is_file():
+            counts["skipped"] += 1
+            continue
+        scan_status, scan_message = storage.scan_file(path)
+        row.scan_status = scan_status
+        row.scan_message = scan_message[:300]
+        if scan_status == "infected":
+            row.status = "quarantined"
+            storage.move_to_quarantine(row)
+        counts[scan_status] = counts.get(scan_status, 0) + 1
+    db.commit()
+
+    summary = ScanAllResult(
+        total=len(rows),
+        clean=counts["clean"],
+        infected=counts["infected"],
+        error=counts["error"],
+        pending=counts["pending"],
+        skipped=counts["skipped"],
+        message=(
+            f"扫描完成：共 {len(rows)} 个文件，安全 {counts['clean']}，"
+            f"风险 {counts['infected']}（已隔离，可放行），"
+            f"异常 {counts['error']}，跳过 {counts['skipped']}"
+        ),
+    )
+    log = ScanLog(
+        triggered_by=admin.id,
+        action="manual",
+        total_files=len(rows),
+        clean_count=counts["clean"],
+        infected_count=counts["infected"],
+        error_count=counts["error"],
+        skipped_count=counts["skipped"],
+        message=summary.message[:300],
+    )
+    db.add(log)
+    db.commit()
+    return summary
+
+
+@router.get("/scan-logs", response_model=list[ScanLogOut])
+def scan_logs(
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+):
+    limit = max(1, min(limit, 100))
+    rows = db.scalars(
+        select(ScanLog).order_by(ScanLog.created_at.desc(), ScanLog.id.desc()).limit(limit)
+    ).all()
+    return [
+        ScanLogOut(
+            id=row.id,
+            action=row.action,
+            total_files=row.total_files,
+            clean_count=row.clean_count,
+            infected_count=row.infected_count,
+            error_count=row.error_count,
+            skipped_count=row.skipped_count,
+            message=row.message,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]

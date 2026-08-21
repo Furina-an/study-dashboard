@@ -165,6 +165,7 @@ class FileOut(BaseModel):
     scan_status: str
     scan_message: str = ""
     integrated: bool
+    is_recommended: bool = False
     admin_note: str
     created_at: datetime
     updated_at: datetime
@@ -176,6 +177,7 @@ class FileUpdate(BaseModel):
     )
     scan_status: str | None = Field(None, pattern="^(pending|clean|infected|error)$")
     integrated: bool | None = None
+    is_recommended: bool | None = None
     admin_note: str | None = Field(None, max_length=500)
     category: str | None = Field(None, max_length=50)
     description: str | None = Field(None, max_length=200)
@@ -405,3 +407,60 @@ class AdminStatsOut(BaseModel):
     total_invites: int
     active_invites: int
     unused_invites: int
+
+
+# ---------------- 安全中心：杀毒扫描 ----------------
+
+class ScanSummaryOut(BaseModel):
+    total_files: int
+    pending: int
+    clean: int
+    infected: int
+    error: int
+    scan_command_configured: bool
+    scan_command: str
+
+
+class ScanLogOut(BaseModel):
+    id: int
+    action: str
+    total_files: int
+    clean_count: int
+    infected_count: int
+    error_count: int
+    skipped_count: int
+    message: str
+    created_at: datetime
+
+
+class ScanAllResult(BaseModel):
+    total: int
+    clean: int
+    infected: int
+    error: int
+    pending: int
+    skipped: int
+    message: str
+
+
+# ---------------- 高数资料（管理员共享区） ----------------
+
+class MathResourceCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=100)
+    description: str = Field("", max_length=500)
+
+
+class MathResourceUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
+
+
+class MathResourceOut(BaseModel):
+    id: int
+    title: str
+    description: str
+    original_name: str
+    ext: str
+    size_bytes: int
+    created_at: datetime
+    updated_at: datetime

@@ -51,6 +51,7 @@ def _to_out(row: StudyFile, db: Session) -> FileOut:
         scan_status=row.scan_status,
         scan_message=row.scan_message,
         integrated=row.integrated,
+        is_recommended=row.is_recommended,
         admin_note=row.admin_note,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -75,6 +76,20 @@ def list_files(
             raise HTTPException(status_code=400, detail="非法文件状态")
         query = query.where(StudyFile.status == status)
     rows = db.scalars(query.order_by(StudyFile.created_at.desc())).all()
+    return [_to_out(row, db) for row in rows]
+
+
+@router.get("/recommended", response_model=list[FileOut])
+def list_recommended(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """管理员推荐的学习资料：所有登录用户可见、可下载（隔离文件除外）。"""
+    query = select(StudyFile).where(
+        StudyFile.is_recommended.is_(True),
+        StudyFile.status != "quarantined",
+    )
+    rows = db.scalars(query.order_by(StudyFile.updated_at.desc())).all()
     return [_to_out(row, db) for row in rows]
 
 
@@ -157,7 +172,9 @@ def download_file(
     db: Session = Depends(get_db),
 ):
     row = _get_file_or_404(db, file_id)
-    _require_access(row, user)
+    # 管理员推荐分享的文件对全员开放；隔离文件仍仅管理员可下载
+    if not (row.is_recommended and row.status != "quarantined"):
+        _require_access(row, user)
     if row.status == "quarantined" and not is_admin_user(user):
         raise HTTPException(status_code=403, detail="文件已被隔离，无法下载")
     path = storage.file_path(row)
@@ -204,6 +221,8 @@ def update_file(
         row.scan_status = payload.scan_status
     if payload.integrated is not None:
         row.integrated = payload.integrated
+    if payload.is_recommended is not None:
+        row.is_recommended = payload.is_recommended
     if payload.admin_note is not None:
         row.admin_note = payload.admin_note[:500]
     if payload.category is not None:

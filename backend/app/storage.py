@@ -66,6 +66,11 @@ def ensure_dirs() -> None:
     root = upload_root()
     (root / "files").mkdir(parents=True, exist_ok=True)
     (root / "quarantine").mkdir(parents=True, exist_ok=True)
+    (root / "math_resources").mkdir(parents=True, exist_ok=True)
+
+
+def math_resource_dir() -> Path:
+    return upload_root() / "math_resources"
 
 
 def max_upload_mb() -> int:

@@ -230,9 +230,136 @@
               <button class="btn small ghost" @click="toggleIntegrate(file)">
                 {{ file.integrated ? '取消整合' : '标记整合' }}
               </button>
+              <button class="btn small ghost" :class="{ 'btn-primary-text': file.is_recommended }" @click="toggleRecommend(file)">
+                {{ file.is_recommended ? '★ 取消推荐' : '推荐' }}
+              </button>
               <button class="btn small danger" title="删除" @click="removeFile(file)">🗑️</button>
             </span>
           </div>
+        </div>
+      </section>
+
+      <!-- 安全中心 -->
+      <section v-else-if="activeTab === 'security'" class="panel">
+        <div class="panel-head">
+          <h2>🛡️ 安全中心 · 文件查杀</h2>
+          <div class="list-actions">
+            <button class="btn small primary" :disabled="scanning" @click="runScanAll">
+              {{ scanning ? '扫描中…' : '一键全量扫描' }}
+            </button>
+            <button class="btn small ghost" @click="loadSecurity">刷新</button>
+          </div>
+        </div>
+        <p class="muted small">
+          扫描为只读操作，不会修改或删除任何用户文件；命中风险的文件仅移入隔离区，可随时放行恢复。
+        </p>
+        <div v-if="scanSummary" class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-value">{{ scanSummary.total_files }}</div>
+            <div class="stat-label">文件总数</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-value">{{ scanSummary.clean }}</div>
+            <div class="stat-label">安全</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ scanSummary.pending }}</div>
+            <div class="stat-label">待扫描</div>
+          </div>
+          <div class="stat-card" :class="{ 'has-risk': scanSummary.infected }">
+            <div class="stat-value">{{ scanSummary.infected }}</div>
+            <div class="stat-label">风险（已隔离）</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ scanSummary.error }}</div>
+            <div class="stat-label">扫描异常</div>
+          </div>
+        </div>
+        <p v-if="scanSummary" class="muted small">
+          杀毒命令：{{ scanSummary.scan_command_configured ? scanSummary.scan_command : '未配置 SCAN_COMMAND（查毒预留，可在环境变量配置 clamscan）' }}
+        </p>
+
+        <h3 style="margin-top: 18px">📜 扫描日志</h3>
+        <p v-if="scanLogsLoading" class="muted">加载中…</p>
+        <div v-else-if="scanLogs.length" class="file-table">
+          <div class="file-row file-head">
+            <span>时间</span>
+            <span>方式</span>
+            <span>文件数</span>
+            <span>安全</span>
+            <span>风险</span>
+            <span>异常</span>
+            <span>说明</span>
+          </div>
+          <div v-for="log in scanLogs" :key="log.id" class="file-row">
+            <span class="muted">{{ formatTime(log.created_at) }}</span>
+            <span>{{ log.action === 'manual' ? '手动全量' : log.action }}</span>
+            <span>{{ log.total_files }}</span>
+            <span>{{ log.clean_count }}</span>
+            <span>{{ log.infected_count }}</span>
+            <span>{{ log.error_count }}</span>
+            <span class="muted">{{ log.message }}</span>
+          </div>
+        </div>
+        <p v-else class="muted">还没有扫描记录。</p>
+      </section>
+
+      <!-- 高数资料 -->
+      <section v-else-if="activeTab === 'math'" class="panel">
+        <h2>🧮 高数资料管理</h2>
+        <p class="muted small">上传的资料会发布到「高数复习」页，所有用户可浏览下载；可随时编辑或删除。</p>
+        <div class="upload-row">
+          <input v-model="mathTitle" class="input" placeholder="标题（如：高数期末复习提纲）" maxlength="100" />
+          <input v-model="mathDesc" class="input" placeholder="一句话描述（可选）" maxlength="500" />
+          <label class="btn ghost file-btn">
+            {{ mathFileName() || '选择文件…' }}
+            <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.md,.txt,.png,.jpg,.jpeg,.gif,.webp" @change="onMathPick" />
+          </label>
+          <button class="btn primary" :disabled="!mathFile || mathUploading || !mathTitle.trim()" @click="doMathUpload">
+            {{ mathUploading ? '上传中…' : '发布资料' }}
+          </button>
+        </div>
+
+        <div class="panel-head" style="margin-top: 18px">
+          <h3>📚 已发布资料（{{ mathResources.length }}）</h3>
+          <button class="btn small ghost" @click="loadMathResources">刷新</button>
+        </div>
+        <p v-if="mathLoading" class="muted">加载中…</p>
+        <p v-else-if="!mathResources.length" class="muted">还没有发布任何资料。</p>
+        <div v-else class="file-table">
+          <div class="file-row file-head">
+            <span>标题</span>
+            <span>文件</span>
+            <span>大小</span>
+            <span>发布时间</span>
+            <span>操作</span>
+          </div>
+          <div v-for="item in mathResources" :key="item.id" class="file-row">
+            <span class="file-name">
+              <span class="file-title">{{ item.title }}</span>
+              <span v-if="item.description" class="file-desc">{{ item.description }}</span>
+            </span>
+            <span>{{ item.original_name }}</span>
+            <span>{{ formatSize(item.size_bytes) }}</span>
+            <span class="muted">{{ formatTime(item.created_at) }}</span>
+            <span class="file-actions">
+              <button class="btn small" title="下载" @click="downloadMath(item)">⬇️</button>
+              <button class="btn small" @click="editMath(item)">编辑</button>
+              <button class="btn small danger" @click="removeMath(item)">删除</button>
+            </span>
+          </div>
+        </div>
+
+        <div v-if="mathEditing" class="new-codes">
+          <div class="panel-head">
+            <h3>✏️ 编辑：{{ mathEditing.title }}</h3>
+            <button class="btn small ghost" @click="mathEditing = null">取消</button>
+          </div>
+          <input v-model="mathEditTitle" class="input" placeholder="标题" maxlength="100" style="margin-bottom: 8px" />
+          <input v-model="mathEditDesc" class="input" placeholder="描述（可选）" maxlength="500" style="margin-bottom: 8px" />
+          <button class="btn primary" :disabled="mathSaving || !mathEditTitle.trim()" @click="saveMathEdit">
+            {{ mathSaving ? '保存中…' : '保存修改' }}
+          </button>
         </div>
       </section>
     </div>
@@ -252,6 +379,8 @@ const tabs = [
   { key: 'invites', icon: '🎟️', label: '邀请码' },
   { key: 'users', icon: '👥', label: '用户' },
   { key: 'files', icon: '📁', label: '文件运营' },
+  { key: 'security', icon: '🛡️', label: '安全中心' },
+  { key: 'math', icon: '🧮', label: '高数资料' },
 ]
 const activeTab = ref('overview')
 
@@ -268,6 +397,21 @@ const error = ref('')
 const notice = ref('')
 const fileFilter = ref('')
 const filesLoaded = ref(false)
+const scanSummary = ref(null)
+const scanLogs = ref([])
+const scanning = ref(false)
+const scanLogsLoading = ref(false)
+const securityLoaded = ref(false)
+const mathResources = ref([])
+const mathLoading = ref(false)
+const mathFile = ref(null)
+const mathTitle = ref('')
+const mathDesc = ref('')
+const mathUploading = ref(false)
+const mathEditing = ref(null)
+const mathEditTitle = ref('')
+const mathEditDesc = ref('')
+const mathSaving = ref(false)
 
 const form = reactive({ count: 1, maxUses: 1, expiresDays: null, remark: '' })
 
@@ -318,6 +462,8 @@ function extIcon(ext) {
 function switchTab(key) {
   activeTab.value = key
   if (key === 'files' && !filesLoaded.value) loadFiles()
+  if (key === 'security' && !securityLoaded.value) loadSecurity()
+  if (key === 'math' && !mathResources.value.length) loadMathResources()
 }
 
 async function loadOverview() {
@@ -463,6 +609,135 @@ async function toggleIntegrate(file) {
   try {
     const row = await api.updateFile(file.id, { integrated: !file.integrated })
     Object.assign(file, row)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function toggleRecommend(file) {
+  try {
+    const row = await api.updateFile(file.id, { is_recommended: !file.is_recommended })
+    Object.assign(file, row)
+    flashNotice(row.is_recommended ? '已推荐，全员可在「推荐资料库」看到' : '已取消推荐')
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function loadSecurity() {
+  scanLogsLoading.value = true
+  try {
+    const [summary, logs] = await Promise.all([api.adminScanSummary(), api.adminScanLogs(20)])
+    scanSummary.value = summary
+    scanLogs.value = logs
+    securityLoaded.value = true
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    scanLogsLoading.value = false
+  }
+}
+
+async function runScanAll() {
+  if (!window.confirm('将对全部用户文件执行一次全量扫描（只读，风险文件会移入隔离区，可放行恢复）。继续？')) return
+  scanning.value = true
+  error.value = ''
+  try {
+    const result = await api.adminScanAll()
+    flashNotice(result.message)
+    await loadSecurity()
+    await loadFiles()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    scanning.value = false
+  }
+}
+
+function mathFileName() {
+  return mathFile.value ? mathFile.value.name : ''
+}
+
+function onMathPick(event) {
+  mathFile.value = event.target.files?.[0] || null
+}
+
+async function loadMathResources() {
+  mathLoading.value = true
+  try {
+    mathResources.value = await api.listMathResources()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    mathLoading.value = false
+  }
+}
+
+async function doMathUpload() {
+  if (!mathFile.value || !mathTitle.value.trim() || mathUploading.value) return
+  mathUploading.value = true
+  error.value = ''
+  try {
+    await api.uploadMathResource(mathFile.value, mathTitle.value.trim(), mathDesc.value.trim())
+    flashNotice('资料已发布')
+    mathFile.value = null
+    mathTitle.value = ''
+    mathDesc.value = ''
+    await loadMathResources()
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    mathUploading.value = false
+  }
+}
+
+async function downloadMath(item) {
+  try {
+    const blob = await api.downloadMathResource(item.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = item.original_name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+function editMath(item) {
+  mathEditing.value = item
+  mathEditTitle.value = item.title
+  mathEditDesc.value = item.description
+}
+
+async function saveMathEdit() {
+  if (!mathEditing.value || mathSaving.value) return
+  mathSaving.value = true
+  error.value = ''
+  try {
+    const row = await api.updateMathResource(mathEditing.value.id, {
+      title: mathEditTitle.value.trim(),
+      description: mathEditDesc.value.trim(),
+    })
+    const index = mathResources.value.findIndex((item) => item.id === row.id)
+    if (index !== -1) mathResources.value[index] = row
+    flashNotice('已保存修改')
+    mathEditing.value = null
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    mathSaving.value = false
+  }
+}
+
+async function removeMath(item) {
+  if (!window.confirm(`确定删除资料「${item.title}」吗？文件将一并删除。`)) return
+  try {
+    await api.deleteMathResource(item.id)
+    mathResources.value = mathResources.value.filter((entry) => entry.id !== item.id)
   } catch (e) {
     error.value = e.message
   }

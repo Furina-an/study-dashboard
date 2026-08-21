@@ -137,6 +137,7 @@ export const api = {
   deletePlanTemplate: (id) => request(`/api/plan-templates/${id}`, { method: 'DELETE' }),
 
   listFiles: (scope = 'mine', status) => request(`/api/files${qs({ scope, status })}`),
+  listRecommendedFiles: () => request('/api/files/recommended'),
   uploadFile: (file, category = '', description = '') => {
     const params = new URLSearchParams({
       filename: file.name,
@@ -163,4 +164,23 @@ export const api = {
   deleteInvite: (id) => request(`/api/admin/invites/${id}`, { method: 'DELETE' }),
   listAdminUsers: () => request('/api/admin/users'),
   updateAdminUser: (id, data) => request(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  adminScanSummary: () => request('/api/admin/scan-summary'),
+  adminScanAll: () => request('/api/admin/scan-all', { method: 'POST' }),
+  adminScanLogs: (limit = 20) => request(`/api/admin/scan-logs${qs({ limit })}`),
+
+  listMathResources: () => request('/api/math/resources'),
+  uploadMathResource: (file, title, description = '') => {
+    const params = new URLSearchParams({ filename: file.name, title, description })
+    return fileRequest(`/api/math/resources?${params.toString()}`, {
+      method: 'POST',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    }).then((res) => res.json())
+  },
+  updateMathResource: (id, data) => request(`/api/math/resources/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteMathResource: (id) => request(`/api/math/resources/${id}`, { method: 'DELETE' }),
+  downloadMathResource: async (id) => {
+    const res = await fileRequest(`/api/math/resources/${id}/download`)
+    return res.blob()
+  },
 }

@@ -45,8 +45,7 @@
             </div>
             <div class="hub-desc">{{ card.desc }}</div>
             <div v-if="card.to === '/math'" class="math-mini">
-              <div class="math-mini-bar"><i :style="{ width: mathPercent + '%' }"></i></div>
-              <span class="math-mini-text">{{ mathStore.done }}/{{ mathStore.total }} 已掌握</span>
+              <span class="math-mini-text">管理员发布 · 全员可浏览下载</span>
             </div>
           </div>
           <span class="hub-arrow">→</span>
@@ -133,14 +132,12 @@ import { useAuthStore } from '../stores/auth'
 import { useStatsStore } from '../stores/stats'
 import { useTasksStore } from '../stores/tasks'
 import { useReviewsStore } from '../stores/reviews'
-import { useMathStore } from '../stores/math'
 import { useSettingsStore } from '../stores/settings'
 
 const auth = useAuthStore()
 const statsStore = useStatsStore()
 const tasksStore = useTasksStore()
 const reviewsStore = useReviewsStore()
-const mathStore = useMathStore()
 const settings = useSettingsStore()
 
 const liveCards = [
@@ -148,10 +145,9 @@ const liveCards = [
     key: 'math',
     to: '/math',
     icon: '🧮',
-    title: '高数复习',
-    desc: '高等数学（上）108 个考点 · 公式渲染 / 搜索 / 章节笔记',
+    title: '高数资料',
+    desc: '管理员发布的高数学习资料 · 全员浏览下载',
     accent: 'math',
-    badge: '新',
   },
   { key: 'pomodoro', to: '/pomodoro', icon: '🍅', title: '番茄专注', desc: '自定义时长专注计时，完成后计入统计' },
   { key: 'tasks', to: '/tasks', icon: '✅', title: '任务管理', desc: '待办 + 习惯打卡，可按计划归类' },
@@ -186,11 +182,6 @@ const reservedCards = [
   { icon: '📈', title: '周 / 月报告', desc: '学习数据导出 Excel / PDF' },
 ]
 
-const mathPercent = computed(() => {
-  if (!mathStore.total) return 0
-  return Math.round((mathStore.done / mathStore.total) * 100)
-})
-
 const greeting = computed(() => {
   if (auth.user?.username) return `嗨，${auth.user.username}，欢迎回到总站 💪`
   return '欢迎回到总站 💪'
@@ -217,6 +208,5 @@ onMounted(() => {
   tasksStore.fetchTasks()
   tasksStore.fetchHabits()
   reviewsStore.fetch('due')
-  mathStore.fetchTree()
 })
 </script>

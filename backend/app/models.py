@@ -387,6 +387,9 @@ class StudyFile(Base):
     integrated: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", nullable=False
     )
+    is_recommended: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     admin_note: Mapped[str] = mapped_column(
         String(500), default="", server_default=""
     )
@@ -396,6 +399,67 @@ class StudyFile(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="files")
+
+class ScanLog(Base):
+    """安全中心：全量杀毒扫描日志（只记录扫描结果，不触碰用户文件内容）。"""
+
+    __tablename__ = "scan_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    triggered_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    action: Mapped[str] = mapped_column(
+        String(20), default="manual", server_default="manual", nullable=False
+    )
+    total_files: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    clean_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    infected_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    error_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    skipped_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    message: Mapped[str] = mapped_column(
+        String(300), default="", server_default=""
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class MathResource(Base):
+    """高数资料：管理员发布的共享学习资料（用户只读浏览/下载）。"""
+
+    __tablename__ = "math_resources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(
+        String(500), default="", server_default=""
+    )
+    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    ext: Mapped[str] = mapped_column(String(20), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    content_type: Mapped[str] = mapped_column(
+        String(100), default="", server_default=""
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
 
 class InviteCode(Base):
     """管理员生成的注册邀请码（按次数与有效期控制使用者人数）。"""

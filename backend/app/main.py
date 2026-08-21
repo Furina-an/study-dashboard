@@ -7,7 +7,6 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, SessionLocal, engine
-from .math_data import seed_math_if_empty
 from . import storage
 from .routers import (
     admin,
@@ -46,10 +45,6 @@ def _ensure_users_is_active() -> None:
 
 _ensure_users_is_active()
 storage.ensure_dirs()
-
-# 启动时幂等装载高数提纲内容（全局只读数据）
-with SessionLocal() as _seed_db:
-    seed_math_if_empty(_seed_db)
 
 app = FastAPI(title="StudyDash API", version="0.1.0")
 

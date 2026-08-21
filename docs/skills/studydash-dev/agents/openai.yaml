@@ -1,0 +1,3 @@
+interface:
+  display_name: "StudyDash 全栈开发"
+  short_description: "按既有约定完成 StudyDash 前后端功能迭代（FastAPI + Vue 3）"

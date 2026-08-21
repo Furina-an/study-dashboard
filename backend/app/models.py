@@ -5,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -52,6 +53,9 @@ class User(Base):
     questions: Mapped[list["Question"]] = relationship(back_populates="user")
     quiz_attempts: Mapped[list["QuizAttempt"]] = relationship(
         back_populates="user"
+    )
+    tutor_settings: Mapped["TutorSettings | None"] = relationship(
+        back_populates="user", uselist=False
     )
 
 
@@ -583,3 +587,37 @@ class QuizAttempt(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="quiz_attempts")
+
+
+class TutorSettings(Base):
+    """AI 助教个性化设置：免费/自定义模式 + 参数默认值（每用户一行）。"""
+
+    __tablename__ = "tutor_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, unique=True, nullable=False
+    )
+    mode: Mapped[str] = mapped_column(
+        String(10), default="custom", server_default="custom", nullable=False
+    )
+    model: Mapped[str] = mapped_column(
+        String(100), default="", server_default="", nullable=False
+    )
+    style: Mapped[str] = mapped_column(
+        String(20), default="socratic", server_default="socratic", nullable=False
+    )
+    temperature: Mapped[float] = mapped_column(
+        Float, default=0.7, server_default="0.7", nullable=False
+    )
+    max_tokens: Mapped[int] = mapped_column(
+        Integer, default=1000, server_default="1000", nullable=False
+    )
+    context_limit: Mapped[int] = mapped_column(
+        Integer, default=20, server_default="20", nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
+    user: Mapped["User"] = relationship(back_populates="tutor_settings")

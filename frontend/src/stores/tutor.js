@@ -9,10 +9,17 @@ export const useTutorStore = defineStore('tutor', {
     loading: false,
     sending: false,
     error: '',
+    settings: null,
   }),
   actions: {
     async fetchSessions() {
       this.sessions = await api.listTutorSessions()
+    },
+    async fetchSettings() {
+      this.settings = await api.getTutorSettings()
+    },
+    async saveSettings(payload) {
+      this.settings = await api.saveTutorSettings(payload)
     },
     async openSession(id) {
       this.activeId = id
@@ -28,7 +35,7 @@ export const useTutorStore = defineStore('tutor', {
         this.loading = false
       }
     },
-    async send(message, subject) {
+    async send(message, subject, overrides = {}) {
       this.sending = true
       this.error = ''
       try {
@@ -36,6 +43,7 @@ export const useTutorStore = defineStore('tutor', {
           session_id: this.activeId,
           message,
           subject,
+          ...overrides,
         })
         this.activeId = result.session_id
         this.messages = await api.listTutorMessages(result.session_id)

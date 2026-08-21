@@ -23,15 +23,24 @@ def chat_completion(
     api_key: str,
     messages: list[dict],
     timeout: float = 60.0,
+    temperature: float = 0.7,
+    max_tokens: int | None = None,
 ) -> str:
     """调用 /chat/completions，返回首个回复文本；失败抛 httpx.HTTPError。"""
+    payload: dict = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
     resp = httpx.post(
         f"{base_url}/chat/completions",
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
-        json={"model": model, "messages": messages, "temperature": 0.7},
+        json=payload,
         timeout=timeout,
     )
     resp.raise_for_status()

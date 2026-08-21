@@ -189,6 +189,8 @@ export const api = {
   listTutorMessages: (id) => request(`/api/tutor/sessions/${id}/messages`),
   tutorChat: (data) => request('/api/tutor/chat', { method: 'POST', body: JSON.stringify(data) }),
   deleteTutorSession: (id) => request(`/api/tutor/sessions/${id}`, { method: 'DELETE' }),
+  getTutorSettings: () => request('/api/tutor/settings'),
+  saveTutorSettings: (data) => request('/api/tutor/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
   // 题库与测验（DeepTutor 出题/掌握模式）
   listQuestions: (subject, source) => request(`/api/questions${qs({ subject, source })}`),

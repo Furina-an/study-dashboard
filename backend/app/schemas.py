@@ -472,6 +472,10 @@ class TutorChatRequest(BaseModel):
     session_id: int | None = None
     message: str = Field(..., min_length=1, max_length=4000)
     subject: str = Field("", max_length=50)
+    model: str | None = Field(None, max_length=100)
+    style: str | None = Field(None, pattern="^(socratic|concise|detailed|exam)$")
+    temperature: float | None = Field(None, ge=0, le=2)
+    max_tokens: int | None = Field(None, ge=100, le=8000)
 
 
 class TutorMessageOut(BaseModel):
@@ -497,6 +501,25 @@ class TutorChatResult(BaseModel):
     session_id: int
     title: str
     reply: str
+
+
+class TutorSettingsOut(BaseModel):
+    mode: str
+    model: str
+    style: str
+    temperature: float
+    max_tokens: int
+    context_limit: int
+    free_available: bool
+
+
+class TutorSettingsUpdate(BaseModel):
+    mode: str | None = Field(None, pattern="^(custom|free)$")
+    model: str | None = Field(None, max_length=100)
+    style: str | None = Field(None, pattern="^(socratic|concise|detailed|exam)$")
+    temperature: float | None = Field(None, ge=0, le=2)
+    max_tokens: int | None = Field(None, ge=100, le=8000)
+    context_limit: int | None = Field(None, ge=4, le=40)
 
 
 # ---------------- 题库与测验（DeepTutor 出题/掌握模式） ----------------

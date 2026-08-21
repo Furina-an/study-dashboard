@@ -22,6 +22,7 @@ from ..models import (
     TaskCheckin,
     TutorMessage,
     TutorSession,
+    TutorSettings,
     User,
     UserSettings,
 )
@@ -32,6 +33,7 @@ router = APIRouter(prefix="/api/backup", tags=["backup"])
 
 SCHEMA_VERSION = 1
 TASK_STATUSES = {"todo", "doing", "done"}
+TUTOR_STYLES = {"socratic", "concise", "detailed", "exam"}
 
 
 def _iso(value) -> str | None:
@@ -115,6 +117,9 @@ def export_backup(
     notes = db.scalars(
         select(MathNote).where(MathNote.user_id == user.id)
     ).all()
+    tutor_settings = db.scalar(
+        select(TutorSettings).where(TutorSettings.user_id == user.id)
+    )
 
     item_keys = {}
     if progress:
@@ -269,6 +274,18 @@ def export_backup(
                     .order_by(TutorMessage.id)
                 ).all()
             ],
+            "tutor_settings": (
+                {
+                    "mode": tutor_settings.mode,
+                    "model": tutor_settings.model,
+                    "style": tutor_settings.style,
+                    "temperature": tutor_settings.temperature,
+                    "max_tokens": tutor_settings.max_tokens,
+                    "context_limit": tutor_settings.context_limit,
+                }
+                if tutor_settings is not None
+                else None
+            ),
         },
     }
 
@@ -306,6 +323,7 @@ def import_backup(
     db.execute(delete(Question).where(Question.user_id == user.id))
     db.execute(delete(TutorMessage).where(TutorMessage.user_id == user.id))
     db.execute(delete(TutorSession).where(TutorSession.user_id == user.id))
+    db.execute(delete(TutorSettings).where(TutorSettings.user_id == user.id))
     db.flush()
 
     counts = {
@@ -323,6 +341,7 @@ def import_backup(
         "quiz_attempts": 0,
         "tutor_sessions": 0,
         "tutor_messages": 0,
+        "tutor_settings": 0,
     }
 
     # 2) 计划（先建行拿新 id，再回填父子关系）
@@ -556,6 +575,35 @@ def import_backup(
             )
         )
         counts["tutor_messages"] += 1
+
+    # 9c) AI 助教设置
+    tutor_settings = data.get("tutor_settings")
+    if isinstance(tutor_settings, dict):
+        temperature = tutor_settings.get("temperature")
+        db.add(
+            TutorSettings(
+                user_id=user.id,
+                mode=(
+                    tutor_settings.get("mode")
+                    if tutor_settings.get("mode") in ("custom", "free")
+                    else "custom"
+                ),
+                model=_text(tutor_settings.get("model"), "", 100),
+                style=(
+                    tutor_settings.get("style")
+                    if tutor_settings.get("style") in TUTOR_STYLES
+                    else "socratic"
+                ),
+                temperature=(
+                    float(temperature) if temperature is not None else 0.7
+                ),
+                max_tokens=_int(tutor_settings.get("max_tokens"), 1000, 100, 8000),
+                context_limit=_int(
+                    tutor_settings.get("context_limit"), 20, 4, 40
+                ),
+            )
+        )
+        counts["tutor_settings"] = 1
 
     # 9) 高数进度与笔记（按内容键映射）
     item_key_map = {}

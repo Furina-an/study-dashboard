@@ -151,6 +151,7 @@ def test_export_import_roundtrip(client, db_session, auth_headers):
         "quiz_attempts": 0,
         "tutor_sessions": 0,
         "tutor_messages": 0,
+        "tutor_settings": 0,
     }
 
     # 计划父子关系重映射正确
@@ -284,6 +285,11 @@ def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
     client.post(
         "/api/tutor/chat", json={"message": "备份测试问题"}, headers=auth_headers
     )
+    client.put(
+        "/api/tutor/settings",
+        json={"mode": "free", "style": "detailed", "temperature": 1.1, "max_tokens": 1500, "context_limit": 12},
+        headers=auth_headers,
+    )
 
     exported = client.get("/api/backup/export", headers=auth_headers).json()
     data = exported["data"]
@@ -291,6 +297,9 @@ def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
     assert len(data["quiz_attempts"]) == 2
     assert len(data["tutor_sessions"]) == 1
     assert len(data["tutor_messages"]) == 2
+    assert data["tutor_settings"]["mode"] == "free"
+    assert data["tutor_settings"]["style"] == "detailed"
+    assert data["tutor_settings"]["max_tokens"] == 1500
 
     imported = client.post(
         "/api/backup/import", json=exported, headers=auth_headers
@@ -299,6 +308,7 @@ def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
     assert imported["counts"]["quiz_attempts"] == 2
     assert imported["counts"]["tutor_sessions"] == 1
     assert imported["counts"]["tutor_messages"] == 2
+    assert imported["counts"]["tutor_settings"] == 1
 
     # 恢复后可查询
     listed = client.get("/api/questions", headers=auth_headers).json()
@@ -313,3 +323,9 @@ def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
         f"/api/tutor/sessions/{sessions[0]['id']}/messages", headers=auth_headers
     ).json()
     assert len(messages) == 2
+    restored_settings = client.get(
+        "/api/tutor/settings", headers=auth_headers
+    ).json()
+    assert restored_settings["mode"] == "free"
+    assert restored_settings["style"] == "detailed"
+    assert restored_settings["context_limit"] == 12

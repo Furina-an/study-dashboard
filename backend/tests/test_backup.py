@@ -329,3 +329,23 @@ def test_backup_roundtrip_quiz_and_tutor(client, auth_headers, monkeypatch):
     assert restored_settings["mode"] == "free"
     assert restored_settings["style"] == "detailed"
     assert restored_settings["context_limit"] == 12
+
+
+def test_backup_roundtrip_task_due_date(client, db_session, auth_headers):
+    user_id = _user_id(client, auth_headers)
+    db_session.add(Task(user_id=user_id, title="带截止任务", due_date=date(2026, 12, 31)))
+    db_session.commit()
+
+    exported = client.get("/api/backup/export", headers=auth_headers).json()
+    task_data = next(
+        t for t in exported["data"]["tasks"] if t["title"] == "带截止任务"
+    )
+    assert task_data["due_date"] == "2026-12-31"
+
+    _wipe(db_session, user_id)
+    response = client.post("/api/backup/import", json=exported, headers=auth_headers)
+    assert response.status_code == 200
+    restored = client.get("/api/tasks", headers=auth_headers).json()
+    assert len(restored) == 1
+    assert restored[0]["title"] == "带截止任务"
+    assert restored[0]["due_date"] == "2026-12-31"

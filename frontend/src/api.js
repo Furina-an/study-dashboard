@@ -80,7 +80,8 @@ export const api = {
   me: () => request('/api/auth/me'),
   health: () => request('/api/health'),
 
-  listTasks: (planId, habit) => request(`/api/tasks${qs({ plan_id: planId, habit })}`),
+  listTasks: (planId, habit, dueFrom, dueTo) =>
+    request(`/api/tasks${qs({ plan_id: planId, habit, due_from: dueFrom, due_to: dueTo })}`),
   createTask: (data) => request('/api/tasks', { method: 'POST', body: JSON.stringify(data) }),
   updateTask: (id, data) => request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),
@@ -95,12 +96,14 @@ export const api = {
   trend: (days = 7) => request(`/api/stats/trend?days=${days}`),
   heatmap: (days = 105) => request(`/api/stats/heatmap?days=${days}`),
   streak: () => request('/api/stats/streak'),
+  calendarData: (start, end) => request(`/api/calendar${qs({ start, end })}`),
 
   listPlans: () => request('/api/plans'),
   createPlan: (data) => request('/api/plans', { method: 'POST', body: JSON.stringify(data) }),
   updatePlan: (id, data) => request(`/api/plans/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deletePlan: (id) => request(`/api/plans/${id}`, { method: 'DELETE' }),
   breakdownPlan: (id, data) => request(`/api/plans/${id}/breakdown`, { method: 'POST', body: JSON.stringify(data) }),
+  dailyPlan: (data) => request('/api/plans/daily-plan', { method: 'POST', body: JSON.stringify(data) }),
 
   getAiConfig: () => request('/api/ai/config'),
   saveAiConfig: (data) => request('/api/ai/config', { method: 'PUT', body: JSON.stringify(data) }),

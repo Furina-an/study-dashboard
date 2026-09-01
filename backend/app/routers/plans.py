@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select, update
@@ -12,6 +12,8 @@ from ..models import AIConfig, Plan, PlanTemplate, Task, User
 from ..schemas import (
     BreakdownRequest,
     BreakdownResult,
+    DailyPlanRequest,
+    DailyPlanResult,
     PlanCreate,
     PlanOut,
     PlanUpdate,
@@ -203,6 +205,95 @@ def breakdown_plan(
     for item in created:
         db.refresh(item)
     return BreakdownResult(created=created)
+
+
+@router.post("/daily-plan", response_model=DailyPlanResult, status_code=201)
+def create_daily_plan(
+    payload: DailyPlanRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI 每日学习计划：目标 + 截止日期 → 拆成小任务并按天排期落库。"""
+    today = date.today()
+    if payload.deadline < today:
+        raise HTTPException(status_code=400, detail="截止日期不能早于今天")
+    if payload.plan_id is not None:
+        plan = _get_owned_plan(payload.plan_id, user.id, db)
+    else:
+        plan = Plan(
+            user_id=user.id,
+            title=payload.goal,
+            description="AI 每日学习计划：每天拆小步，按截止日期排期。",
+        )
+        db.add(plan)
+        db.commit()
+        db.refresh(plan)
+
+    steps = _ai_daily_steps(user.id, payload, db)
+    total_days = max(1, (payload.deadline - today).days + 1)
+    day_remaining = [payload.daily_minutes] * total_days
+    created: list[Task] = []
+    for step in steps[:30]:
+        raw_minutes = step.get("estimated_minutes")
+        try:
+            estimated = max(1, min(600, int(raw_minutes)))
+        except (TypeError, ValueError):
+            estimated = payload.daily_minutes
+        target_day = next(
+            (i for i in range(total_days) if day_remaining[i] >= estimated),
+            total_days - 1,
+        )
+        day_remaining[target_day] -= estimated
+        task = Task(
+            user_id=user.id,
+            plan_id=plan.id,
+            title=str(step["title"])[:200],
+            subject=payload.subject,
+            estimated_minutes=estimated,
+            due_date=today + timedelta(days=target_day),
+        )
+        db.add(task)
+        created.append(task)
+    db.commit()
+    for task in created:
+        db.refresh(task)
+    return DailyPlanResult(plan=plan, tasks=created)
+
+
+def _ai_daily_steps(
+    user_id: int, payload: DailyPlanRequest, db: Session
+) -> list[dict]:
+    """调用 LLM 生成每日计划任务清单；未配置 AI 时返回明确错误。"""
+    resolved = _resolve_llm(user_id, db)
+    if resolved is None:
+        raise HTTPException(
+            status_code=400,
+            detail="尚未配置 AI 服务：请先在「AI 设置」中配置 API，或由服务器设置 LLM_API_KEY 环境变量",
+        )
+    total_days = max(1, (payload.deadline - date.today()).days + 1)
+    prompt = (
+        "你是学习规划助手。请把下面的学习目标拆解成 3-12 个可执行的小任务，"
+        "并按剩余天数尽量均衡地分配到每天。\n"
+        f"目标：{payload.goal}\n"
+        f"科目：{payload.subject or '（不限定）'}\n"
+        f"剩余天数：{total_days} 天，每天可投入约 {payload.daily_minutes} 分钟\n"
+        '只返回 JSON，格式：{"tasks":[{"title":"任务标题","estimated_minutes":30}]}'
+    )
+    try:
+        content = chat_completion(
+            resolved["base_url"],
+            resolved["model"],
+            resolved["api_key"],
+            [{"role": "user", "content": prompt}],
+        )
+    except Exception as exc:  # noqa: BLE001 - 统一转成用户可读错误
+        raise HTTPException(
+            status_code=502, detail=f"AI 调用失败：{extract_error_message(exc)}"
+        )
+    steps = parse_children_json(content, key="tasks")
+    if not steps:
+        raise HTTPException(status_code=502, detail="AI 返回内容无法解析")
+    return steps
 
 
 def _resolve_llm(user_id: int, db: Session) -> dict:

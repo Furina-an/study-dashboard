@@ -111,6 +111,9 @@ class Task(Base):
         String(10), default="daily", server_default="daily", nullable=False
     )
     habit_days: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    due_date: Mapped[date | None] = mapped_column(
+        Date, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None

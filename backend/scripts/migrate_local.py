@@ -74,6 +74,10 @@ def main() -> None:
                 )
             )
         print("已为 tasks 添加 habit_frequency 列")
+    if "due_date" not in task_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN due_date DATE"))
+        print("已为 tasks 添加 due_date 列")
 
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.username == args.username))

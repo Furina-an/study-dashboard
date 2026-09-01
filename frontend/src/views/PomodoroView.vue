@@ -63,6 +63,8 @@ const durationMin = ref(settings.pomodoroDefault || 25)
 const remaining = ref((settings.pomodoroDefault || 25) * 60)
 const running = ref(false)
 let timerId = null
+let doneTimerId = null
+let wakeLock = null
 let endTime = 0 // 计划结束时间戳（ms），用于后台节流时校准
 
 const showCompleteDialog = ref(false)
@@ -104,10 +106,23 @@ function start() {
   if (remaining.value <= 0) setDuration(durationMin.value)
   endTime = Date.now() + remaining.value * 1000
   running.value = true
-  timerId = setInterval(() => {
-    if (syncRemaining() <= 0) finish()
-  }, 500)
+  timerId = setInterval(tick, 500)
+  // 兜底定时器：后台被节流时也能在到点后触发完成（即使标签页不可见）
+  doneTimerId = setTimeout(() => {
+    if (running.value) {
+      syncRemaining()
+      if (remaining.value <= 0) finish()
+    }
+  }, remaining.value * 1000 + 300)
   syncRemaining()
+  requestWakeLock()
+  requestNotificationPermission()
+  updateTitle()
+}
+
+function tick() {
+  if (syncRemaining() <= 0) finish()
+  else updateTitle()
 }
 
 function pause() {
@@ -117,6 +132,12 @@ function pause() {
     clearInterval(timerId)
     timerId = null
   }
+  if (doneTimerId !== null) {
+    clearTimeout(doneTimerId)
+    doneTimerId = null
+  }
+  releaseWakeLock()
+  document.title = '专注计时 · StudyDash'
 }
 
 function reset() {
@@ -129,6 +150,7 @@ function finish() {
   finishedMinutes.value = durationMin.value
   remaining.value = 0
   beep()
+  notifyFinish()
   if (!tasksStore.tasks.length) tasksStore.fetchTasks()
   showCompleteDialog.value = true
 }
@@ -175,12 +197,63 @@ function beep() {
 }
 
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible' && running.value) syncRemaining()
+  if (document.visibilityState !== 'visible') return
+  if (running.value) {
+    syncRemaining()
+    if (remaining.value <= 0) finish()
+  }
+}
+
+function updateTitle() {
+  const minutes = Math.floor(remaining.value / 60)
+  const seconds = remaining.value % 60
+  document.title = `🍅 ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} · StudyDash`
+}
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen')
+      wakeLock.addEventListener('release', () => {
+        wakeLock = null
+      })
+    }
+  } catch {
+    /* 浏览器不支持或权限被拒时静默 */
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {})
+    wakeLock = null
+  }
+}
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {})
+  }
+}
+
+function notifyFinish() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  try {
+    new Notification('🍅 番茄钟完成', {
+      body: `本次专注 ${finishedMinutes.value} 分钟，休息一下吧！`,
+    })
+  } catch {
+    /* 通知被浏览器拦截时静默 */
+  }
 }
 
 onBeforeUnmount(() => {
   if (timerId !== null) clearInterval(timerId)
+  if (doneTimerId !== null) clearTimeout(doneTimerId)
+  releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  document.title = '专注计时 · StudyDash'
 })
 
 onMounted(async () => {

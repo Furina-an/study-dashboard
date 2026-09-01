@@ -69,6 +69,8 @@ def _normalize_habit(data: dict) -> None:
 def list_tasks(
     plan_id: int | None = Query(None),
     habit: bool | None = Query(None),
+    due_from: date | None = Query(None),
+    due_to: date | None = Query(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -78,6 +80,10 @@ def list_tasks(
         statement = statement.where(Task.plan_id == plan_id)
     if habit is not None:
         statement = statement.where(Task.is_habit.is_(habit))
+    if due_from is not None:
+        statement = statement.where(Task.due_date >= due_from)
+    if due_to is not None:
+        statement = statement.where(Task.due_date <= due_to)
     return db.scalars(statement.order_by(Task.created_at.desc())).all()
 
 

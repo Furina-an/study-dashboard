@@ -1850,3 +1850,153 @@ h2 {
   .file-row.file-head { display: none; }
   .file-actions { justify-content: flex-start; }
 }
+
+/* ===== 日历视图 ===== */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.cal-weekday {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.cal-cell {
+  min-height: 86px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cal-cell:hover {
+  border-color: var(--primary);
+}
+.cal-muted {
+  opacity: 0.45;
+}
+.cal-today {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.cal-selected {
+  background: var(--primary-soft);
+}
+.cal-daynum {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.cal-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cal-item {
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 2px 5px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-item.task {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.cal-item.review {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+.cal-more {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cal-focus {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--primary);
+}
+/* ===== 任务看板 ===== */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.kanban-col {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 220px;
+}
+.kanban-col h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.kanban-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.kanban-overdue {
+  border-left: 3px solid var(--danger);
+}
+.kanban-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.kanban-empty {
+  text-align: center;
+  padding: 12px 0;
+}
+.date-inline {
+  width: 150px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.tag-done {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+.success-text {
+  color: var(--success);
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .cal-grid {
+    gap: 3px;
+  }
+  .cal-cell {
+    min-height: 64px;
+    padding: 4px;
+  }
+  .cal-item {
+    display: none;
+  }
+  .cal-focus {
+    display: none;
+  }
+  .kanban {
+    grid-template-columns: 1fr;
+  }
+}

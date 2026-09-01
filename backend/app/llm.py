@@ -68,7 +68,7 @@ def extract_error_message(exc: Exception) -> str:
     return f"调用失败：{exc}"
 
 
-def parse_children_json(content: str) -> list[dict]:
+def parse_children_json(content: str, key: str = "children") -> list[dict]:
     """解析 LLM 返回的 {children:[...]}，兼容 markdown 代码块包裹。"""
     text = content.strip()
     if text.startswith("```"):
@@ -85,19 +85,20 @@ def parse_children_json(content: str) -> list[dict]:
         except json.JSONDecodeError:
             return []
 
-    items = data.get("children") if isinstance(data, dict) else data
+    items = data.get(key) if isinstance(data, dict) else data
     if not isinstance(items, list):
         return []
 
     result: list[dict] = []
     for item in items:
         if isinstance(item, dict) and item.get("title"):
-            result.append(
-                {
-                    "title": str(item["title"])[:100],
-                    "description": str(item.get("description", ""))[:500],
-                }
-            )
+            entry = {
+                "title": str(item["title"])[:100],
+                "description": str(item.get("description", ""))[:500],
+            }
+            if "estimated_minutes" in item:
+                entry["estimated_minutes"] = item["estimated_minutes"]
+            result.append(entry)
         elif isinstance(item, str) and item.strip():
             result.append({"title": item.strip()[:100], "description": ""})
     return result

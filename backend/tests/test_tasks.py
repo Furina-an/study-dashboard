@@ -89,3 +89,32 @@ def test_delete_task(client, auth_headers):
     assert (
         client.delete("/api/tasks/999", headers=auth_headers).status_code == 404
     )
+
+
+def test_task_due_date_create_update(client, auth_headers):
+    task = create_task(client, auth_headers, due_date="2026-12-31").json()
+    assert task["due_date"] == "2026-12-31"
+
+    updated = client.patch(
+        f"/api/tasks/{task['id']}", json={"due_date": "2026-12-25"}, headers=auth_headers
+    ).json()
+    assert updated["due_date"] == "2026-12-25"
+
+    cleared = client.patch(
+        f"/api/tasks/{task['id']}", json={"due_date": None}, headers=auth_headers
+    ).json()
+    assert cleared["due_date"] is None
+
+
+def test_task_due_date_filter(client, auth_headers):
+    client.post("/api/tasks", json={"title": "一月任务", "due_date": "2026-01-10"}, headers=auth_headers)
+    client.post("/api/tasks", json={"title": "三月任务", "due_date": "2026-03-10"}, headers=auth_headers)
+    client.post("/api/tasks", json={"title": "无截止"}, headers=auth_headers)
+
+    listed = client.get(
+        "/api/tasks?due_from=2026-01-01&due_to=2026-01-31", headers=auth_headers
+    ).json()
+    assert [t["title"] for t in listed] == ["一月任务"]
+
+    listed2 = client.get("/api/tasks?due_from=2026-01-01", headers=auth_headers).json()
+    assert {t["title"] for t in listed2} == {"一月任务", "三月任务"}

@@ -156,6 +156,7 @@ def export_backup(
                     "status": task.status,
                     "is_habit": task.is_habit,
                     "habit_frequency": task.habit_frequency,
+                    "due_date": _iso(task.due_date),
                     "created_at": _iso(task.created_at),
                     "completed_at": _iso(task.completed_at),
                 }
@@ -383,6 +384,7 @@ def import_backup(
                 if task.get("habit_frequency") in ("daily",)
                 else "daily"
             ),
+            due_date=_parse_date(task.get("due_date")),
             created_at=_parse_dt(task.get("created_at")),
             completed_at=_parse_dt(task.get("completed_at")),
         )

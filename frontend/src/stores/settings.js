@@ -2,17 +2,21 @@ import { defineStore } from 'pinia'
 import { api } from '../api'
 import { useThemeStore } from './theme'
 
-export const HUB_CARD_KEYS = ['math', 'pomodoro', 'tasks', 'plans', 'reviews', 'stats', 'ai', 'files']
+export const HUB_CARD_KEYS = ['math', 'pomodoro', 'tasks', 'plans', 'calendar', 'reviews', 'stats', 'ai', 'ai_plan', 'files', 'tutor', 'quiz']
 
 const HUB_CARD_LABELS = {
   math: '高数复习',
   pomodoro: '番茄专注',
   tasks: '任务管理',
   plans: '计划拆解',
+  calendar: '日历看板',
   reviews: '复习提醒',
   stats: '统计看板',
   ai: 'AI 服务',
+  ai_plan: 'AI 每日计划',
   files: '学习文件',
+  tutor: 'AI 助教',
+  quiz: '题库测验',
 }
 
 function defaultHubCards() {

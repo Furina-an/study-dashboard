@@ -13,6 +13,7 @@ from .routers import (
     ai,
     auth,
     backup,
+    calendar,
     files,
     habits,
     math,
@@ -75,9 +76,34 @@ def _ensure_column(table: str, column: str, pg_default: str) -> None:
         print(f"补列 {table}.{column} 失败（已跳过，不影响启动）：{exc}")
 
 
+def _ensure_date_column(table: str, column: str) -> None:
+    """幂等补 DATE 类型列（SQLite / PostgreSQL 通用），失败只警告不阻塞启动。"""
+    from sqlalchemy import inspect, text
+
+    try:
+        inspector = inspect(engine)
+        if table not in inspector.get_table_names():
+            return
+        backend = engine.url.get_backend_name()
+        if backend == "postgresql":
+            with engine.begin() as conn:
+                conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} DATE")
+                )
+        else:
+            columns = {col["name"] for col in inspector.get_columns(table)}
+            if column not in columns:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} DATE"))
+        print(f"已确保 {table}.{column}")
+    except Exception as exc:  # noqa: BLE001 - 迁移失败不阻塞启动
+        print(f"补列 {table}.{column} 失败（已跳过，不影响启动）：{exc}")
+
+
 # 旧库迁移：users.is_active（封号能力）、study_files.is_recommended（推荐分享）
 _ensure_column("users", "is_active", "true")
 _ensure_column("study_files", "is_recommended", "false")
+_ensure_date_column("tasks", "due_date")
 storage.ensure_dirs()
 
 app = FastAPI(title="StudyDash API", version="0.1.0")
@@ -106,6 +132,7 @@ app.include_router(admin.router)
 app.include_router(ai.router)
 app.include_router(auth.router)
 app.include_router(backup.router)
+app.include_router(calendar.router)
 app.include_router(files.router)
 app.include_router(plan_templates.router)
 app.include_router(settings.router)

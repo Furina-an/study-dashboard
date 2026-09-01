@@ -30,6 +30,7 @@
           placeholder="分钟"
           title="预计分钟"
         />
+        <input v-model="form.due_date" class="input narrow" type="date" title="截止日期" />
         <select v-model="form.plan_id" class="input" title="所属计划">
           <option :value="null">不挂计划</option>
           <option v-for="plan in plansStore.plans" :key="plan.id" :value="plan.id">
@@ -95,6 +96,14 @@
             <span v-if="task.plan_id && planName(task.plan_id)" class="task-plan">{{ planName(task.plan_id) }}</span>
             <span v-if="task.subject" class="task-subject">{{ task.subject }}</span>
             <span class="task-meta">预计 {{ task.estimated_minutes }} 分钟</span>
+            <input
+              v-model="task.due_date"
+              type="date"
+              class="input date-inline"
+              title="截止日期（留空则清除）"
+              @change="updateDue(task)"
+            />
+            <span v-if="task.due_date && isDueOverdue(task)" class="tag tag-overdue">已逾期</span>
             <span v-if="task.is_habit" class="habit-streak">🔥 {{ habitOf(task)?.current_streak ?? 0 }} 天</span>
             <span v-if="task.is_habit && habitOf(task)?.scheduled_today === false" class="tag tag-muted">今日非打卡日</span>
           </div>
@@ -147,6 +156,7 @@ const form = ref({
   subject: '',
   estimated_minutes: 25,
   plan_id: null,
+  due_date: '',
   is_habit: false,
   habit_frequency: 'daily',
   habit_days: [],
@@ -245,6 +255,7 @@ async function createTask() {
       subject: form.value.subject.trim(),
       estimated_minutes: form.value.estimated_minutes || 25,
       plan_id: form.value.plan_id,
+      due_date: form.value.due_date || null,
       is_habit: form.value.is_habit,
       habit_frequency: form.value.is_habit ? form.value.habit_frequency : 'daily',
       habit_days: form.value.habit_frequency === 'custom' ? form.value.habit_days : undefined,
@@ -254,6 +265,7 @@ async function createTask() {
       subject: '',
       estimated_minutes: settings.defaultEstimatedMinutes,
       plan_id: null,
+      due_date: '',
       is_habit: false,
       habit_frequency: settings.habitFrequencyDefault,
       habit_days: [],
@@ -300,6 +312,22 @@ async function undoCheckin(task) {
   } finally {
     checkingId.value = null
   }
+}
+
+async function updateDue(task) {
+  try {
+    await tasksStore.updateTask(task.id, { due_date: task.due_date || null })
+  } catch (e) {
+    formError.value = e.message
+  }
+}
+
+function isDueOverdue(task) {
+  if (task.status === 'done' || !task.due_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(`${task.due_date}T00:00:00`)
+  return due < today
 }
 
 async function removeTask(task) {

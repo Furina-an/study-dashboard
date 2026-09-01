@@ -36,7 +36,14 @@
         <span class="muted">学习管理台 + 高数复习，按账号数据隔离</span>
       </div>
       <div class="hub-grid">
-        <router-link v-for="card in visibleCards" :key="card.to" :to="card.to" class="hub-card" :class="card.accent">
+        <router-link
+          v-for="card in visibleCards"
+          :key="card.key"
+          :to="card.to || '/'"
+          class="hub-card"
+          :class="card.accent"
+          @click="onCardClick($event, card)"
+        >
           <span class="hub-icon">{{ card.icon }}</span>
           <div class="hub-info">
             <div class="hub-title">
@@ -123,11 +130,14 @@
         暂无进行中的任务，去 <router-link to="/tasks">任务页</router-link> 添加一个吧。
       </p>
     </section>
+
+    <AiPlanModal :open="aiPlanOpen" @close="aiPlanOpen = false" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import AiPlanModal from '../components/AiPlanModal.vue'
 import { useAuthStore } from '../stores/auth'
 import { useStatsStore } from '../stores/stats'
 import { useTasksStore } from '../stores/tasks'
@@ -139,6 +149,18 @@ const statsStore = useStatsStore()
 const tasksStore = useTasksStore()
 const reviewsStore = useReviewsStore()
 const settings = useSettingsStore()
+const aiPlanOpen = ref(false)
+
+function onCardClick(event, card) {
+  if (card.action) {
+    event.preventDefault()
+    aiPlanOpen.value = true
+  }
+}
+
+function openAiPlan() {
+  aiPlanOpen.value = true
+}
 
 const liveCards = [
   {
@@ -152,10 +174,12 @@ const liveCards = [
   { key: 'pomodoro', to: '/pomodoro', icon: '🍅', title: '番茄专注', desc: '自定义时长专注计时，完成后计入统计' },
   { key: 'tasks', to: '/tasks', icon: '✅', title: '任务管理', desc: '待办 + 习惯打卡，可按计划归类' },
   { key: 'plans', to: '/plans', icon: '🗂️', title: '计划拆解', desc: '大计划拆小计划，手动 / 模板 / AI' },
+  { key: 'calendar', to: '/calendar', icon: '📅', title: '日历看板', desc: '任务截止日期、月历视图与拖拽看板' },
   { key: 'files', to: '/files', icon: '📁', title: '学习文件', desc: '上传学习资料，运营整合入库' },
   { key: 'reviews', to: '/reviews', icon: '🔁', title: '复习提醒', desc: '自定义艾宾浩斯间隔复习节点' },
   { key: 'stats', to: '/stats', icon: '📊', title: '统计看板', desc: '专注热力图、30 天趋势、连续天数' },
   { key: 'ai', to: '/ai-settings', icon: '🤖', title: 'AI 服务', desc: '配置 OpenAI 兼容接口，用于计划 AI 拆解' },
+  { key: 'ai_plan', icon: '✨', title: 'AI 每日计划', desc: '目标 + 截止日期 → AI 拆小步并按天排期', accent: 'ai', action: true },
   { key: 'tutor', to: '/tutor', icon: '🧑‍🏫', title: 'AI 助教', desc: '引导式辅导答疑，随时提问' },
   { key: 'quiz', to: '/quiz', icon: '📝', title: '题库测验', desc: '题库 + AI 出题 + 掌握度统计' },
   { key: 'settings', to: '/settings', icon: '⚙️', title: '数据备份', desc: '个性化设置、导出 / 导入备份，部署与端口' },

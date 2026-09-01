@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,6 +12,7 @@ class TaskCreate(BaseModel):
     is_habit: bool = False
     habit_frequency: str = Field("daily", pattern="^(daily|weekdays|custom)$")
     habit_days: list[int] | None = None
+    due_date: date | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -23,6 +24,7 @@ class TaskUpdate(BaseModel):
     is_habit: bool | None = None
     habit_frequency: str | None = Field(None, pattern="^(daily|weekdays|custom)$")
     habit_days: list[int] | None = None
+    due_date: date | None = Field(None)
 
 
 class TaskOut(BaseModel):
@@ -37,6 +39,7 @@ class TaskOut(BaseModel):
     is_habit: bool
     habit_frequency: str
     habit_days: list[int] | None
+    due_date: date | None
     created_at: datetime
     completed_at: datetime | None
 
@@ -593,3 +596,33 @@ class MasteryStats(BaseModel):
     total_answered: int
     total_correct: int
     overall_accuracy: float
+
+
+# ---------------- 日历视图与 AI 每日学习计划 ----------------
+
+class CalendarReviewItem(BaseModel):
+    id: int
+    source_type: str
+    source_id: int
+    source_title: str
+    due_date: str
+    reviewed_at: datetime | None
+
+
+class CalendarOut(BaseModel):
+    tasks: list[TaskOut]
+    reviews: list[CalendarReviewItem]
+    focus_minutes: dict[str, int]
+
+
+class DailyPlanRequest(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=100)
+    deadline: date
+    daily_minutes: int = Field(120, ge=15, le=600)
+    subject: str = Field("", max_length=50)
+    plan_id: int | None = None
+
+
+class DailyPlanResult(BaseModel):
+    plan: PlanOut
+    tasks: list[TaskOut]

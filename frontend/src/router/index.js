@@ -33,6 +33,12 @@ const routes = [
     meta: { title: '任务', requiresAuth: true },
   },
   {
+    path: '/calendar',
+    name: 'calendar',
+    component: () => import('../views/CalendarView.vue'),
+    meta: { title: '日历看板', requiresAuth: true },
+  },
+  {
     path: '/plans',
     name: 'plans',
     component: () => import('../views/PlansView.vue'),

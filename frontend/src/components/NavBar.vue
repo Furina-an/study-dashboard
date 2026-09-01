@@ -6,6 +6,7 @@
         <router-link to="/" exact-active-class="active">首页</router-link>
         <router-link to="/pomodoro" active-class="active">专注</router-link>
         <router-link to="/tasks" active-class="active">任务</router-link>
+        <router-link to="/calendar" active-class="active">日历</router-link>
         <router-link to="/plans" active-class="active">计划</router-link>
         <router-link to="/tutor" active-class="active">助教</router-link>
         <router-link to="/quiz" active-class="active">测验</router-link>

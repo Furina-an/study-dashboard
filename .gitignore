@@ -12,3 +12,12 @@ frontend/.env.local
 data/
 userstore/**/__pycache__/
 userstore/tests/.tmp_test/
+
+# Android（Capacitor）构建产物与签名密钥：不入库
+frontend/android/app/build/
+frontend/android/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/keystore.properties
+frontend/android/*.keystore
+frontend/android/app/src/main/assets/public/

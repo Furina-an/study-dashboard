@@ -204,4 +204,46 @@ export const api = {
   quizSession: (subject, count) => request(`/api/quiz/session${qs({ subject, count })}`),
   quizAnswer: (data) => request('/api/quiz/answer', { method: 'POST', body: JSON.stringify(data) }),
   quizMastery: () => request('/api/quiz/mastery'),
+
+  // 课表：作息设置、课程、三种导入解析与生成上课任务
+  getTimetableSettings: () => request('/api/timetable/settings'),
+  saveTimetableSettings: (data) =>
+    request('/api/timetable/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  listCourses: () => request('/api/timetable/courses'),
+  createCourse: (data) =>
+    request('/api/timetable/courses', { method: 'POST', body: JSON.stringify(data) }),
+  updateCourse: (id, data) =>
+    request(`/api/timetable/courses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCourse: (id) => request(`/api/timetable/courses/${id}`, { method: 'DELETE' }),
+  bulkSaveCourses: (courses, replace = false) =>
+    request('/api/timetable/courses/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ courses, replace }),
+    }),
+  parseCourseText: (text) =>
+    request('/api/timetable/import/parse-text', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+  parseCourseRows: (rows, mapping) =>
+    request('/api/timetable/import/parse-rows', {
+      method: 'POST',
+      body: JSON.stringify({ rows, mapping }),
+    }),
+  parseCourseFile: async (file) => {
+    const params = new URLSearchParams({ filename: file.name })
+    const res = await fileRequest(`/api/timetable/import/parse-file?${params.toString()}`, {
+      method: 'POST',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    })
+    return res.json()
+  },
+  generateCourseTasks: (id) =>
+    request(`/api/timetable/courses/${id}/generate-tasks`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  generateAllCourseTasks: () =>
+    request('/api/timetable/generate-tasks', { method: 'POST', body: JSON.stringify({}) }),
 }

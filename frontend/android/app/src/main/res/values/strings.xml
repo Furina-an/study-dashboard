@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StudyDash</string>
+    <string name="title_activity_main">StudyDash</string>
+    <string name="package_name">com.furina.studydash</string>
+    <string name="custom_url_scheme">com.furina.studydash</string>
+</resources>

@@ -8,3 +8,4 @@ bcrypt
 PyJWT
 psycopg[binary]
 cryptography
+openpyxl

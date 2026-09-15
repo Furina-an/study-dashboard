@@ -626,3 +626,98 @@ class DailyPlanRequest(BaseModel):
 class DailyPlanResult(BaseModel):
     plan: PlanOut
     tasks: list[TaskOut]
+
+
+# ---------------- 课表 ----------------
+
+class PeriodSlot(BaseModel):
+    index: int = Field(..., ge=1, le=30)
+    start: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    end: str = Field(..., pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class TimetableSettingsOut(BaseModel):
+    term_start: date | None
+    total_weeks: int
+    periods: list[PeriodSlot]
+    current_week: int | None
+
+
+class TimetableSettingsUpdate(BaseModel):
+    term_start: date | None = None
+    total_weeks: int | None = Field(None, ge=1, le=30)
+    periods: list[PeriodSlot] | None = Field(None, min_length=1, max_length=20)
+
+
+class CourseBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    teacher: str = Field("", max_length=50)
+    location: str = Field("", max_length=100)
+    weekday: int = Field(..., ge=1, le=7)
+    start_period: int = Field(..., ge=1, le=30)
+    end_period: int = Field(..., ge=1, le=30)
+    weeks: list[int] | None = None
+    color: str = Field("", max_length=20)
+    note: str = Field("", max_length=200)
+
+
+class CourseCreate(CourseBase):
+    pass
+
+
+class CourseUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=100)
+    teacher: str | None = Field(None, max_length=50)
+    location: str | None = Field(None, max_length=100)
+    weekday: int | None = Field(None, ge=1, le=7)
+    start_period: int | None = Field(None, ge=1, le=30)
+    end_period: int | None = Field(None, ge=1, le=30)
+    weeks: list[int] | None = None
+    color: str | None = Field(None, max_length=20)
+    note: str | None = Field(None, max_length=200)
+
+
+class CourseOut(CourseBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+
+
+class CourseBulkRequest(BaseModel):
+    courses: list[CourseCreate] = Field(default_factory=list, max_length=300)
+    replace: bool = False
+
+
+class CourseImportPreview(BaseModel):
+    courses: list[CourseCreate]
+    warnings: list[str]
+
+
+class FileImportPreview(BaseModel):
+    headers: list[str]
+    rows: list[list[str]]
+    suggested_mapping: dict[str, int]
+    total_rows: int
+    truncated: bool
+
+
+class RowMappingRequest(BaseModel):
+    rows: list[list[str]] = Field(default_factory=list, max_length=500)
+    mapping: dict[str, int] = Field(default_factory=dict)
+
+
+class TextImportRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=20000)
+
+
+class GenerateTasksRequest(BaseModel):
+    plan_id: int | None = None
+
+
+class GenerateTasksResult(BaseModel):
+    created: int
+    skipped: int
+    plan_id: int
+    tasks: list[TaskOut]
+    message: str = ""

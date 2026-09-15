@@ -173,6 +173,7 @@ const liveCards = [
   },
   { key: 'pomodoro', to: '/pomodoro', icon: '🍅', title: '番茄专注', desc: '自定义时长专注计时，完成后计入统计' },
   { key: 'tasks', to: '/tasks', icon: '✅', title: '任务管理', desc: '待办 + 习惯打卡，可按计划归类' },
+  { key: 'timetable', to: '/timetable', icon: '📋', title: '课程表', desc: 'AI / Excel / 手动导入课表，一键生成上课任务' },
   { key: 'plans', to: '/plans', icon: '🗂️', title: '计划拆解', desc: '大计划拆小计划，手动 / 模板 / AI' },
   { key: 'calendar', to: '/calendar', icon: '📅', title: '日历看板', desc: '任务截止日期、月历视图与拖拽看板' },
   { key: 'files', to: '/files', icon: '📁', title: '学习文件', desc: '上传学习资料，运营整合入库' },

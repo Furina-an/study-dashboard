@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     AIConfig,
+    Course,
     MathChapter,
     MathItem,
     MathNote,
@@ -22,6 +23,7 @@ from ..models import (
     TaskCheckin,
     TutorMessage,
     TutorSession,
+    TimetableSettings,
     TutorSettings,
     User,
     UserSettings,
@@ -119,6 +121,9 @@ def export_backup(
     ).all()
     tutor_settings = db.scalar(
         select(TutorSettings).where(TutorSettings.user_id == user.id)
+    )
+    timetable_settings = db.scalar(
+        select(TimetableSettings).where(TimetableSettings.user_id == user.id)
     )
 
     item_keys = {}
@@ -275,6 +280,31 @@ def export_backup(
                     .order_by(TutorMessage.id)
                 ).all()
             ],
+            "courses": [
+                {
+                    "name": course.name,
+                    "teacher": course.teacher,
+                    "location": course.location,
+                    "weekday": course.weekday,
+                    "start_period": course.start_period,
+                    "end_period": course.end_period,
+                    "weeks": course.weeks,
+                    "color": course.color,
+                    "note": course.note,
+                }
+                for course in db.scalars(
+                    select(Course).where(Course.user_id == user.id).order_by(Course.id)
+                ).all()
+            ],
+            "timetable_settings": (
+                {
+                    "term_start": _iso(timetable_settings.term_start),
+                    "total_weeks": timetable_settings.total_weeks,
+                    "periods": timetable_settings.periods,
+                }
+                if timetable_settings is not None
+                else None
+            ),
             "tutor_settings": (
                 {
                     "mode": tutor_settings.mode,
@@ -325,6 +355,8 @@ def import_backup(
     db.execute(delete(TutorMessage).where(TutorMessage.user_id == user.id))
     db.execute(delete(TutorSession).where(TutorSession.user_id == user.id))
     db.execute(delete(TutorSettings).where(TutorSettings.user_id == user.id))
+    db.execute(delete(Course).where(Course.user_id == user.id))
+    db.execute(delete(TimetableSettings).where(TimetableSettings.user_id == user.id))
     db.flush()
 
     counts = {
@@ -343,6 +375,8 @@ def import_backup(
         "tutor_sessions": 0,
         "tutor_messages": 0,
         "tutor_settings": 0,
+        "courses": 0,
+        "timetable_settings": 0,
     }
 
     # 2) 计划（先建行拿新 id，再回填父子关系）
@@ -606,6 +640,69 @@ def import_backup(
             )
         )
         counts["tutor_settings"] = 1
+
+    # 9d) 课表：作息设置与课程
+    timetable_payload = data.get("timetable_settings")
+    if isinstance(timetable_payload, dict):
+        slot_rows = timetable_payload.get("periods")
+        periods: list[dict] = []
+        if isinstance(slot_rows, list):
+            for slot in slot_rows[:20]:
+                if not isinstance(slot, dict):
+                    continue
+                index = _int(slot.get("index"), 0, 1, 30)
+                if index < 1:
+                    continue
+                periods.append(
+                    {
+                        "index": index,
+                        "start": _text(slot.get("start"), "", 5),
+                        "end": _text(slot.get("end"), "", 5),
+                    }
+                )
+        db.add(
+            TimetableSettings(
+                user_id=user.id,
+                term_start=_parse_date(timetable_payload.get("term_start")),
+                total_weeks=_int(timetable_payload.get("total_weeks"), 16, 1, 30),
+                periods=periods or None,
+            )
+        )
+        counts["timetable_settings"] = 1
+
+    for course in data.get("courses", []):
+        if not isinstance(course, dict):
+            continue
+        weekday = _int(course.get("weekday"), 0, 1, 7)
+        name = _text(course.get("name"), "", 100)
+        if weekday < 1 or not name:
+            continue
+        start_period = _int(course.get("start_period"), 1, 1, 30)
+        end_period = _int(course.get("end_period"), start_period, 1, 30)
+        raw_weeks = course.get("weeks")
+        course_weeks = None
+        if isinstance(raw_weeks, list):
+            try:
+                course_weeks = sorted(
+                    {int(week) for week in raw_weeks if 1 <= int(week) <= 30}
+                ) or None
+            except (TypeError, ValueError):
+                course_weeks = None
+        db.add(
+            Course(
+                user_id=user.id,
+                name=name,
+                teacher=_text(course.get("teacher"), "", 50),
+                location=_text(course.get("location"), "", 100),
+                weekday=weekday,
+                start_period=start_period,
+                end_period=max(start_period, end_period),
+                weeks=course_weeks,
+                color=_text(course.get("color"), "", 20),
+                note=_text(course.get("note"), "", 200),
+            )
+        )
+        counts["courses"] += 1
 
     # 9) 高数进度与笔记（按内容键映射）
     item_key_map = {}

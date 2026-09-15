@@ -152,6 +152,8 @@ def test_export_import_roundtrip(client, db_session, auth_headers):
         "tutor_sessions": 0,
         "tutor_messages": 0,
         "tutor_settings": 0,
+        "courses": 0,
+        "timetable_settings": 0,
     }
 
     # 计划父子关系重映射正确

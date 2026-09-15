@@ -57,6 +57,10 @@ class User(Base):
     tutor_settings: Mapped["TutorSettings | None"] = relationship(
         back_populates="user", uselist=False
     )
+    courses: Mapped[list["Course"]] = relationship(back_populates="user")
+    timetable_settings: Mapped["TimetableSettings | None"] = relationship(
+        back_populates="user", uselist=False
+    )
 
 
 class Plan(Base):
@@ -624,3 +628,47 @@ class TutorSettings(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="tutor_settings")
+
+
+class Course(Base):
+    """课表课程：星期 + 节次区间 + 生效周次（按用户隔离）。"""
+
+    __tablename__ = "courses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    teacher: Mapped[str] = mapped_column(String(50), default="", server_default="")
+    location: Mapped[str] = mapped_column(String(100), default="", server_default="")
+    weekday: Mapped[int] = mapped_column(Integer, nullable=False)  # 1=周一 … 7=周日
+    start_period: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_period: Mapped[int] = mapped_column(Integer, nullable=False)
+    weeks: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    color: Mapped[str] = mapped_column(String(20), default="", server_default="")
+    note: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    user: Mapped["User"] = relationship(back_populates="courses")
+
+
+class TimetableSettings(Base):
+    """课表设置：学期第 1 周周一、总周数、作息表（每用户一行）。"""
+
+    __tablename__ = "timetable_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), index=True, unique=True, nullable=False
+    )
+    term_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    total_weeks: Mapped[int] = mapped_column(
+        Integer, default=16, server_default="16", nullable=False
+    )
+    periods: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
+    user: Mapped["User"] = relationship(back_populates="timetable_settings")

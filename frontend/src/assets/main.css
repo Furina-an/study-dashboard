@@ -2000,3 +2000,190 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- 课表 ---------- */
+.tt-scroll {
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-top: 10px;
+}
+
+.tt-grid {
+  display: grid;
+  grid-template-columns: 84px repeat(7, minmax(104px, 1fr));
+  gap: 4px;
+  min-width: 860px;
+}
+
+.tt-corner,
+.tt-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  border-radius: var(--radius-sm);
+}
+
+.tt-head-today {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.tt-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  border-radius: var(--radius-sm);
+}
+
+.tt-time strong {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.tt-cell {
+  background: var(--surface-soft);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.tt-cell:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary-light);
+}
+
+.tt-cell.tt-today {
+  background: var(--primary-soft);
+  border-style: solid;
+}
+
+.tt-course {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  margin: 1px;
+  overflow: hidden;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--course-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tt-course:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.tt-course-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--course-color);
+}
+
+.tt-course-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tt-table th,
+.tt-table td {
+  padding: 4px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.tt-table .input {
+  width: 100%;
+}
+
+.tt-table .input.narrow {
+  width: 70px;
+}
+
+.tt-preview-scroll {
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+.tt-mapping {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.tt-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.tt-replace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.modal.wide {
+  max-width: 920px;
+  max-height: 88vh;
+  overflow: auto;
+}
+
+.modal .field .input,
+.modal .input-row .input,
+.modal .tt-table .input,
+.modal textarea.input {
+  margin: 0;
+}
+
+.modal textarea.input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .tt-grid {
+    grid-template-columns: 62px repeat(7, minmax(92px, 1fr));
+    min-width: 720px;
+  }
+
+  .modal.wide {
+    max-width: 100%;
+    padding: 16px;
+  }
+}

@@ -33,7 +33,10 @@ study-dashboard/
 │   ├── study.db      # SQLite 数据库（自动生成）
 │   └── requirements.txt
 ├── frontend/         # Vue 3 前端
-│   └── src/          # 页面、组件、状态管理
+│   ├── src/          # 页面、组件、状态管理
+│   ├── assets/       # 安卓图标 / 启动页源图（1024 / 2732）
+│   └── android/      # Capacitor 安卓工程（构建产物不入库）
+├── scripts/          # build-apk.ps1（打包安卓）、make-app-icons.py（生成图标）
 ├── userstore/        # 独立用户信息储存系统（纯标准库，可独立 pytest）
 ├── docs/             # 过程文档（验收清单等）
 └── README.md
@@ -134,6 +137,18 @@ cd backend
 | POST | `/api/reviews/complete-due` | 一键完成到期复习 |
 | GET | `/api/stats/heatmap?days=105` | 每日专注分钟（热力图数据） |
 | GET | `/api/stats/streak` | 连续专注天数统计 |
+| GET | `/api/timetable/settings` | 课表设置（学期第 1 周周一 / 总周数 / 作息表 / 当前第几周） |
+| PUT | `/api/timetable/settings` | 更新课表设置（周数、时间格式、节次连续性校验） |
+| GET | `/api/timetable/courses` | 课程列表（按星期 + 节次排序） |
+| POST | `/api/timetable/courses` | 新增课程（星期 + 起止节次 + 生效周次） |
+| PATCH | `/api/timetable/courses/{id}` | 修改课程 |
+| DELETE | `/api/timetable/courses/{id}` | 删除课程 |
+| POST | `/api/timetable/courses/bulk` | 批量保存课表（`replace=true` 覆盖，上限 300 条） |
+| POST | `/api/timetable/import/parse-file?filename=` | 上传 `.xlsx` / `.csv`，返回表头 + 预览行 + 建议列映射（不落库） |
+| POST | `/api/timetable/import/parse-rows` | 按列映射解析表格行（不落库） |
+| POST | `/api/timetable/import/parse-text` | AI 解析粘贴的课表文本（不落库） |
+| POST | `/api/timetable/courses/{id}/generate-tasks` | 单门课一键生成上课任务 |
+| POST | `/api/timetable/generate-tasks` | 全部课程一键生成上课任务（幂等跳过） |
 | GET | `/api/settings` | 读取当前账号个性化设置 |
 | PUT | `/api/settings` | 更新个性化设置（部分更新、字段校验） |
 | GET | `/api/plan-templates` | 我的计划模板列表 |
@@ -211,6 +226,44 @@ $env:LLM_MODEL = "deepseek-chat"
 阿里云服务器：编辑 `/opt/studydash/.env` 加入上述三项后 `systemctl restart studydash`。Render：在 Web Service 环境变量中同样添加（可选）。
 
 配置示例：DeepSeek 用 `LLM_API_BASE=https://api.deepseek.com/v1`、`LLM_MODEL=deepseek-chat`；通义千问用 `LLM_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1`、`LLM_MODEL=qwen-plus`；OpenAI 用默认基地址 + `gpt-4o-mini`。
+
+## 课程表（导入 + 生成任务）
+
+课表页 `/timetable` 用 7 列 × 作息节的网格排课，三种入口都走「解析预览 → 确认入库」，预览表可直接改课程名 / 星期 / 节次 / 周次后再保存：
+
+- **AI 解析**：把教务系统的课表文本整段粘贴，AI 解析成结构化课程（需先在「AI 设置」配置 API 或由服务器配置 `LLM_API_KEY`）。
+- **Excel / CSV 导入**：支持 `.xlsx` 与 `.csv`，自动识别表头并给出建议列映射（可手改）；旧版 `.xls` 请先另存为 `.xlsx`。
+- **手动添加**：直接填课程名、星期、节次、生效周次；也可点课表空格快速添加。
+
+解析规则（服务端统一实现）：
+
+- 星期：`周一 / 星期一 / 一 / 1 / Mon`
+- 节次：`1-2`、`1,2`、`第1-2节`
+- 周次：`1-16周`、`单周`、`双周`、`1,3,5`、`1-8,10-16`
+- 表格只给时间（如 `08:00-09:40`）时，按「学期与作息」里的作息表反查节次，对不上会以 warning 返回
+- 同一时段重复课程给冲突 warning，不阻断导入；无法解析的行不落库，统一以 warning 提示
+
+**生成上课任务**：先在「学期与作息」设置「学期第 1 周周一」，再点「⚡ 生成上课任务」。每节课生成一条带截止日期的任务（标题为「课程名（地点）」），自动挂到「课表」计划下，estimated_minutes 由作息表推算；同课程同日期已存在会跳过（可重复点击）。未设置学期起始周时会提示先设置。
+
+## 安卓 App（Capacitor 打包）
+
+前端通过 Capacitor 7 打包为安卓 App（包名 `com.furina.studydash`，应用名 StudyDash）：
+
+```powershell
+# 在仓库根目录执行；首次会自动生成签名密钥并打印密码
+powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1
+
+# 常用参数
+#   -Debug      出 debug 包（不签名）
+#   -SkipWeb    跳过 npm build，只重新打包（已构建过前端时用）
+#   -ApiBase "http://192.168.1.10:8000"   指定后端地址（默认线上 Render）
+```
+
+- 产物：`frontend/android/app/build/outputs/apk/release/app-release.apk`，脚本最后用 `apksigner` 校验签名并打印 SHA256。
+- 依赖本机 `.toolchain` 的 JDK21 + Android SDK（platform 35 / build-tools 35）；`android.overridePathCheck=true` 已开启以支持中文路径。
+- 签名密钥 `studydash-release.keystore` 与 `keystore.properties` 只存本地且已加入 `.gitignore`，**丢失后无法覆盖升级**，请自行备份。
+- 图标与启动页源图由 `python scripts/make-app-icons.py` 生成到 `frontend/assets/`，再执行 `npx @capacitor/assets generate --android` 输出各密度资源。
+- 安卓 WebView 来源是 `https://localhost` / `capacitor://localhost`，后端 CORS 已自动放行这两个来源，无需改 Render 环境变量。
 
 ## 个性化设置（按账号）
 

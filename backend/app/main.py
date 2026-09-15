@@ -26,6 +26,7 @@ from .routers import (
     settings,
     stats,
     tasks,
+    timetable,
     tutor,
 )
 
@@ -109,15 +110,28 @@ storage.ensure_dirs()
 app = FastAPI(title="StudyDash API", version="0.1.0")
 
 
+# 安卓 App（Capacitor）的 WebView 来源固定为这两个，必须放行
+# 否则打包后的 App 内所有接口请求都会被 CORS 拦截
+CAPACITOR_ORIGINS = ("https://localhost", "capacitor://localhost")
+
+
 def _allowed_origins() -> list[str]:
-    """默认允许本地开发；部署时通过 ALLOWED_ORIGINS 逗号分隔配置。"""
+    """默认允许本地开发；部署时通过 ALLOWED_ORIGINS 逗号分隔配置。
+
+    无论是否配置，都会附加 Capacitor 安卓端的来源，保证 App 可用。
+    """
     configured = os.getenv("ALLOWED_ORIGINS", "")
     if configured.strip():
-        return [origin.strip() for origin in configured.split(",") if origin.strip()]
-    return [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ]
+        origins = [origin.strip() for origin in configured.split(",") if origin.strip()]
+    else:
+        origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+    for origin in CAPACITOR_ORIGINS:
+        if origin not in origins:
+            origins.append(origin)
+    return origins
 
 
 app.add_middleware(
@@ -146,6 +160,7 @@ app.include_router(tutor.router)
 app.include_router(tasks.router)
 app.include_router(sessions.router)
 app.include_router(stats.router)
+app.include_router(timetable.router)
 
 
 @app.get("/api/health")

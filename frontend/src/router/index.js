@@ -33,6 +33,12 @@ const routes = [
     meta: { title: '任务', requiresAuth: true },
   },
   {
+    path: '/timetable',
+    name: 'timetable',
+    component: () => import('../views/TimetableView.vue'),
+    meta: { title: '课表', requiresAuth: true },
+  },
+  {
     path: '/calendar',
     name: 'calendar',
     component: () => import('../views/CalendarView.vue'),

@@ -2,12 +2,13 @@ import { defineStore } from 'pinia'
 import { api } from '../api'
 import { useThemeStore } from './theme'
 
-export const HUB_CARD_KEYS = ['math', 'pomodoro', 'tasks', 'plans', 'calendar', 'reviews', 'stats', 'ai', 'ai_plan', 'files', 'tutor', 'quiz']
+export const HUB_CARD_KEYS = ['math', 'pomodoro', 'tasks', 'timetable', 'plans', 'calendar', 'reviews', 'stats', 'ai', 'ai_plan', 'files', 'tutor', 'quiz']
 
 const HUB_CARD_LABELS = {
   math: '高数复习',
   pomodoro: '番茄专注',
   tasks: '任务管理',
+  timetable: '课程表',
   plans: '计划拆解',
   calendar: '日历看板',
   reviews: '复习提醒',
